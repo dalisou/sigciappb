@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<h1>Auditoria de ações</h1><div class="card"><table><tr><th>Data</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>ID</th></tr>{% for row in rows %}<tr><td>{{ row.criado_em }}</td><td>{{ row.usuario }}</td><td>{{ row.acao }}</td><td>{{ row.entidade }}</td><td>{{ row.entidade_id }}</td></tr>{% endfor %}</table></div>{% endblock %}

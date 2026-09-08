@@ -1,0 +1,26 @@
+<main class="appointment-receipt">
+	<header class="receipt-header">
+		<div class="receipt-institution">CIAP</div>
+		<h1>Agendamento</h1>
+	</header>
+
+	<p class="receipt-intro">Comprovante de agendamento</p>
+	<section class="receipt-section">
+		<h2>Informações do assistido</h2>
+		<div class="print-row"><span class="label">Nome</span><span>{{ appointment.nome }}</span></div>
+		<div class="print-row"><span class="label">CPF</span><span>{{ appointment.cpf or 'Não informado' }}</span></div>
+		<div class="print-row"><span class="label">Número do processo</span><span>{{ appointment.processo or 'Não informado' }}</span></div>
+	</section>
+	<section class="receipt-section">
+		<h2>Dados do agendamento</h2>
+		<div class="print-row"><span class="label">Profissional</span><span>{{ appointment.profissional }}</span></div>
+		<div class="print-row"><span class="label">Data</span><span>{{ appointment.data[8:10] }}/{{ appointment.data[5:7] }}/{{ appointment.data[0:4] }}</span></div>
+		<div class="print-row"><span class="label">Horário</span><span>{{ appointment.hora }}</span></div>
+	</section>
+	{% if appointment.observacao %}<section class="receipt-section"><h2>Observação</h2><p>{{ appointment.observacao }}</p></section>{% endif %}
+
+	<footer class="receipt-footer">
+		<div>Avenida Coremas, 1017, Jaguaribe</div>
+		<div>Contato: (83) 988433894</div>
+	</footer>
+</main>

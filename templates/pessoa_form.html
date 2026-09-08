@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>{{ title }}</h1>
+<p class="muted">Campos baseados na planilha enviada. Documentos devem estar atualizados e completos.</p>
+<form method="post" enctype="multipart/form-data">
+	<div class="card">
+		<h2>Dados do cabeçalho da base</h2>
+		<div class="grid">
+			{% for field in fields %}
+			<label>{{ labels[field] }}
+				<input name="{{ field }}" value="{{ person[field] if person else '' }}" {% if field in ['data_nascimento','data_atendimento','termino_medida'] %}type="date"{% endif %}>
+			</label>
+			{% endfor %}
+		</div>
+	</div>
+	<div class="card">
+		<h2>Documentos para envio</h2>
+		{% if person and person.documentos %}
+		<p class="muted">Documentos já anexados permanecem salvos. Arquivos selecionados abaixo serão acrescentados.</p>
+		{% endif %}
+		<div class="grid">
+			{% for document in docs %}
+			<label>{{ loop.index }}. {{ document }}
+				<input type="file" name="doc_{{ loop.index0 }}" {% if loop.index == 2 %}multiple{% endif %}>
+			</label>
+			{% endfor %}
+		</div>
+	</div>
+	<button>Salvar cadastro</button>
+</form>
+{% endblock %}

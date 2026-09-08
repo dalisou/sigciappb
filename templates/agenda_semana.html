@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="actions print-button">
+	<a class="btn alt" href="{{ url_for('agenda_semana', inicio=previous_week) }}">Semana anterior</a>
+	<a class="btn alt" href="{{ url_for('agenda_semana') }}">Semana atual</a>
+	<a class="btn alt" href="{{ url_for('agenda_semana', inicio=next_week) }}">Próxima semana</a>
+	<button type="button" onclick="window.print()">Imprimir agenda</button>
+</div>
+<div class="card">
+	<h1>Agenda da Semana</h1>
+	<p><strong>{{ week_start.strftime('%d/%m/%Y') }} a {{ week_end.strftime('%d/%m/%Y') }}</strong></p>
+	{% if appointments %}
+	<table>
+		<tr><th>Data</th><th>Hora</th><th>Assistido(a)</th><th>Processo</th><th>Profissional</th><th>Observação</th></tr>
+		{% for appointment in appointments %}<tr class="{% if appointment.status == 'Faltou' %}appointment-missed{% endif %}"><td>{{ appointment.data[8:10] }}/{{ appointment.data[5:7] }}/{{ appointment.data[0:4] }}</td><td>{{ appointment.hora }}</td><td>{{ appointment.nome }}</td><td>{{ appointment.processo or '—' }}</td><td>{{ appointment.profissional }}</td><td><strong>{{ appointment.status or 'Agendado' }}</strong>{% if appointment.status == 'Faltou' %}<div class="attendance-alert">Alerta: não compareceu ao agendamento marcado.</div>{% endif %}<br>{{ appointment.observacao or '—' }}{% if appointment.observacao_falta %}<br><strong>Relato da falta:</strong> {{ appointment.observacao_falta }}{% endif %}</td></tr>{% endfor %}
+	</table>
+	{% else %}<p class="muted">Nenhum atendimento agendado para esta semana.</p>{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or 'CIAP Gestor' }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=static_version) }}">
+</head>
+<body>
+{% if session.get('uid') %}
+<header class="topbar"><div class="brand">CIAP <span>•</span> Gestor de Alternativas Penais</div><nav><a class="back-link" href="{{ url_for('dashboard') }}" onclick="if (history.length > 1) { history.back(); return false; }">Voltar</a><a href="{{ url_for('dashboard') }}">Painel</a><a href="{{ url_for('pessoas') }}">Assistidos</a><a href="{{ url_for('agendamentos') }}">Agendamentos</a><a href="{{ url_for('relatorios') }}">Relatórios</a><a href="{{ url_for('grupos') }}">Grupos</a><a href="{{ url_for('auditoria') }}">Auditoria</a>{% if is_admin %}<a href="{{ url_for('perfis') }}">Perfis</a>{% endif %}<a href="{{ url_for('logout') }}">Sair</a></nav></header>
+{% endif %}
+<main class="wrap">{% for message in get_flashed_messages() %}<div class="flash">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}</main>
+{% if session.get('uid') %}<footer class="site-footer"><a class="btn alt" href="{{ url_for('dashboard') }}" onclick="if (history.length > 1) { history.back(); return false; }">Voltar</a></footer>{% endif %}
+</body>
+<script src="{{ url_for('static', filename='js/app.js', v=static_version) }}" defer></script>
+</html>

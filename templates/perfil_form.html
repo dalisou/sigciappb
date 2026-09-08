@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>{{ title }}</h1>
+<div class="card">
+	<form method="post">
+		<div class="grid">
+			<label>Nome<input name="nome" value="{{ user.nome }}" required></label>
+			<label>E-mail<input name="email" type="email" value="{{ user.email }}" required></label>
+			<label>Perfil<select name="perfil" required><option value="profissional" {% if user.perfil == 'profissional' %}selected{% endif %}>Profissional</option><option value="administrador" {% if user.perfil == 'administrador' %}selected{% endif %}>Administrador</option></select></label>
+			<label>Status<select name="status" required><option value="pendente" {% if user.status == 'pendente' %}selected{% endif %}>Pendente</option><option value="aprovado" {% if user.status == 'aprovado' %}selected{% endif %}>Aprovado</option><option value="rejeitado" {% if user.status == 'rejeitado' %}selected{% endif %}>Rejeitado</option></select></label>
+			<label>Nova senha (opcional)<input name="senha" type="password" minlength="6" pattern="[A-Za-z0-9]{6,}"><small>Deixe em branco para manter a senha atual. Mínimo de 6 caracteres alfanuméricos.</small></label>
+		</div>
+		<div class="actions"><button>Salvar alterações</button><a class="btn alt" href="{{ url_for('perfis') }}">Cancelar</a></div>
+	</form>
+</div>
+{% endblock %}

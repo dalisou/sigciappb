@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>{{ person.nome }}</h1>
+<div class="actions">
+	{% if is_admin %}<a class="btn" href="{{ url_for('editar_pessoa', pid=person.id) }}">Editar cadastro</a>
+	<a class="btn" href="{{ url_for('editar_frequencia', pid=person.id) }}">Editar frequência</a>{% endif %}
+	<a class="btn" href="{{ url_for('termo', pid=person.id) }}" target="_blank">Imprimir termo</a>
+	<a class="btn" href="{{ url_for('novo_atendimento', pid=person.id) }}">Registrar atendimento</a>
+	<a class="btn" href="{{ url_for('agendamentos', pessoa_id=person.id) }}">Agendar retorno</a>
+</div>
+<div class="card">
+	<h2>Dados</h2>
+	<div class="grid">
+		{% for field in fields %}
+		<div><label>{{ labels[field] }}</label><div>{{ person[field] or '—' }}</div></div>
+		{% endfor %}
+	</div>
+	<div class="appointment-attendance-panel">
+		<h3>Comparecimento aos agendamentos</h3>
+		{% if appointments %}{% for item in appointments %}<div class="appointment-attendance-row {% if item.status == 'Faltou' %}appointment-missed{% endif %}">
+			<div><strong>{{ item.data }} às {{ item.hora }}</strong><br><span class="muted">{{ item.profissional }} · Status: {{ item.status or 'Agendado' }}</span></div>
+			<div class="status-actions"><form method="post" action="{{ url_for('atualizar_status_agendamento', appointment_id=item.id) }}"><input type="hidden" name="status" value="Compareceu"><button class="btn" type="submit">Compareceu</button></form><form method="post" action="{{ url_for('atualizar_status_agendamento', appointment_id=item.id) }}"><input type="hidden" name="status" value="Faltou"><label class="absence-note">Observação da falta<textarea name="observacao_falta" rows="2" placeholder="Motivo ou justificativa da falta"></textarea></label><button class="btn warning" type="submit">Faltou</button></form></div>
+		</div>{% endfor %}{% else %}<p class="muted">Nenhum agendamento registrado para este assistido.</p>{% endif %}
+	</div>
+</div>
+<div class="card">
+	<h2>Frequência dos 10 encontros</h2>
+	<p><strong>Situação:</strong> {{ person.situacao_grupo or 'Em andamento' }}</p>
+	{% if person.alerta_frequencia %}<div class="frequency-alert">{{ person.alerta_frequencia }}</div>{% endif %}
+	<table><tr><th>Encontro</th><th>Frequência</th><th>Data</th></tr>
+	{% for index in range(1, 11) %}{% set frequency = frequencies|selectattr('encontro', 'equalto', index)|first %}
+	<tr><td>{{ index }}º encontro</td><td>{{ frequency.status if frequency and frequency.status else 'Não registrado' }}</td><td>{{ frequency.data if frequency and frequency.data else '—' }}</td></tr>
+	{% endfor %}</table>
+</div>
+<div class="card">
+	<h2>Retornos agendados</h2>
+	{% if scheduling_alerts %}<div class="scheduling-alert"><strong>Alerta de agendamento:</strong> este assistido aguarda vaga para {% for alert in scheduling_alerts %}{{ alert.profissional }}{% if alert.data_preferencial %}, preferencialmente em {{ alert.data_preferencial }}{% endif %}{% if alert.hora_preferencial %} às {{ alert.hora_preferencial }}{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}. Consulte a fila de alertas na página de Agendamentos.</div>{% endif %}
+	{% if missed_appointments %}<div class="attendance-alert attendance-alert-block">Alerta: o assistido não compareceu ao agendamento marcado.</div>{% endif %}
+	{% if appointments %}<table><tr><th>Data</th><th>Hora</th><th>Profissional</th><th>Status</th><th>Observação</th><th>Atualizar</th></tr>
+	{% for item in appointments %}<tr class="{% if item.status == 'Faltou' %}appointment-missed{% endif %}"><td>{{ item.data }}</td><td>{{ item.hora }}</td><td>{{ item.profissional }}</td><td>{{ item.status or 'Agendado' }}</td><td>{{ item.observacao or '—' }}{% if item.observacao_falta %}<br><strong>Relato da falta:</strong> {{ item.observacao_falta }}{% endif %}</td><td><div class="status-actions"><form method="post" action="{{ url_for('atualizar_status_agendamento', appointment_id=item.id) }}"><input type="hidden" name="status" value="Compareceu"><button class="btn" type="submit">Compareceu</button></form><form method="post" action="{{ url_for('atualizar_status_agendamento', appointment_id=item.id) }}"><input type="hidden" name="status" value="Faltou"><label class="absence-note">Observação da falta<textarea name="observacao_falta" rows="2" placeholder="Motivo ou justificativa da falta"></textarea></label><button class="btn warning" type="submit">Faltou</button></form></div></td></tr>{% endfor %}</table>
+	{% else %}<p class="muted">Nenhum retorno agendado.</p>{% endif %}
+</div>
+<div class="card"><h2>Documentos anexados</h2><pre>{{ person.documentos or 'Nenhum documento anexado.' }}</pre></div>
+<div class="card">
+	<h2>Atendimentos</h2>
+	<table><tr><th>Data</th><th>Tipo</th><th>Profissional</th><th>Conclusão</th><th></th></tr>
+	{% for item in attendances %}<tr><td>{{ item.data }}</td><td>{{ item.tipo_retorno }}</td><td>{{ item.profissional }}</td><td>{{ item.conclusao }}</td><td><a class="btn" href="{{ url_for('editar_atendimento', aid=item.id) }}">Editar</a> <a class="btn" href="{{ url_for('retorno', aid=item.id) }}" target="_blank">Imprimir</a></td></tr>{% endfor %}
+	</table>
+</div>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Agendamentos de retorno</h1>
+<div class="actions"><a class="btn alt" href="{{ url_for('agenda_semana') }}">Agenda da Semana</a></div>
+<div class="card">
+	<h2>Disponibilidade dos profissionais</h2>
+	<p class="muted">Cadastre os dias e horários em que cada profissional pode atender.</p>
+	{% if is_admin %}<form method="post" action="{{ url_for('nova_disponibilidade') }}">
+		<div class="grid">
+			<label>Profissional<select name="profissional" required><option value="">Selecione</option>{% for professional in professional_options %}<option value="{{ professional }}">{{ professional }}</option>{% endfor %}</select></label>
+			<label>Data<input type="date" name="dia_mes" required></label>
+			<label>Início<input type="time" name="hora_inicio" required></label>
+			<label>Fim<input type="time" name="hora_fim" required></label>
+		</div>
+		<button>Cadastrar disponibilidade</button>
+	</form>{% endif %}
+	{% if availabilities %}<table><tr><th>Profissional</th><th>Dia</th><th>Horário</th><th></th></tr>
+	{% for availability in availabilities %}<tr><td>{{ availability.profissional }}</td><td>{{ '%02d/%02d/%04d'|format(availability.dia_mes, current_month, current_year) }}</td><td>{{ availability.hora_inicio }} às {{ availability.hora_fim }}</td><td>{% if is_admin %}<form method="post" action="{{ url_for('excluir_disponibilidade', availability_id=availability.id) }}"><button class="btn alt" type="submit">Remover</button></form>{% endif %}</td></tr>{% endfor %}</table>{% endif %}
+</div>
+<div class="card">
+	<h2>Novo agendamento</h2>
+	<form method="post">
+		<div class="grid">
+			<label>Assistido(a)
+				<select name="pessoa_id" required>
+					<option value="">Selecione</option>
+					{% for person in people %}<option value="{{ person.id }}" {% if selected_person|string == person.id|string %}selected{% endif %}>{{ person.nome }}{% if person.processo %} | Processo {{ person.processo }}{% endif %}</option>{% endfor %}
+				</select>
+			</label>
+			<label>Profissional
+				<select name="profissional" id="appointment-professional" required><option value="">Selecione</option>{% for professional in professional_options %}<option value="{{ professional }}">{{ professional }}</option>{% endfor %}</select>
+			</label>
+			<label>Data do retorno
+				<select name="data" id="appointment-date" required disabled>
+					<option value="">Selecione primeiro o profissional</option>
+				</select>
+			</label>
+			<label>Hora do retorno<input type="time" name="hora" required></label>
+			<label>Observação<textarea name="observacao" placeholder="Informações adicionais do agendamento"></textarea></label>
+		</div>
+		<button>Agendar retorno</button>
+	</form>
+</div>
+<div class="card">
+	<h2>Alerta: aguardando vaga</h2>
+	<p class="muted">Use quando o retorno ainda não tiver data prevista. O alerta ficará visível para toda a equipe até ser encerrado.</p>
+	<form method="post" action="{{ url_for('criar_alerta_agendamento') }}">
+		<div class="grid">
+			<label>Assistido(a)<select name="pessoa_id" required><option value="">Selecione</option>{% for person in people %}<option value="{{ person.id }}" {% if selected_person|string == person.id|string %}selected{% endif %}>{{ person.nome }}{% if person.processo %} | Processo {{ person.processo }}{% endif %}</option>{% endfor %}</select></label>
+			<label>Profissional<select name="profissional" required><option value="">Selecione</option>{% for professional in professional_options %}<option value="{{ professional }}">{{ professional }}</option>{% endfor %}</select></label>
+			<label>Data preferencial (opcional)<input type="date" name="data_preferencial"></label>
+			<label>Hora preferencial (opcional)<input type="time" name="hora_preferencial"></label>
+			<label>Observação<textarea name="observacao" placeholder="Motivo ou orientação para quando surgir vaga"></textarea></label>
+		</div>
+		<button>Criar alerta de vaga</button>
+	</form>
+</div>
+<div class="card">
+	<h2>Fila de alertas de agendamento</h2>
+	{% if scheduling_alerts %}<table><tr><th>Assistido(a)</th><th>Profissional</th><th>Data preferencial</th><th>Hora preferencial</th><th>Observação</th><th></th></tr>
+	{% for alert in scheduling_alerts %}<tr><td><a href="{{ url_for('pessoa', pid=alert.pessoa_id) }}">{{ alert.nome }}</a></td><td>{{ alert.profissional }}</td><td>{{ alert.data_preferencial or 'Sem previsão' }}</td><td>{{ alert.hora_preferencial or 'Qualquer horário' }}</td><td>{{ alert.observacao or '—' }}</td><td><form method="post" action="{{ url_for('encerrar_alerta_agendamento', alert_id=alert.id) }}"><button class="btn alt" type="submit">Encerrar alerta</button></form></td></tr>{% endfor %}</table>
+	{% else %}<p class="muted">Nenhum alerta aguardando vaga.</p>{% endif %}
+</div>
+<div class="card">
+	<h2>Retornos agendados</h2>
+	<p class="muted">O profissional responsável pode atualizar o comparecimento diretamente no registro de cada assistido.</p>
+	{% if appointments %}<table><tr><th>Data</th><th>Hora</th><th>Assistido(a)</th><th>Processo</th><th>Profissional responsável</th><th>Observação</th><th>Status</th><th>Editar comparecimento</th></tr>
+	{% for appointment in appointments %}<tr class="{% if appointment.status == 'Faltou' %}appointment-missed{% endif %}"><td>{{ appointment.data }}</td><td>{{ appointment.hora }}</td><td><a href="{{ url_for('pessoa', pid=appointment.pessoa_id) }}">{{ appointment.nome }}</a></td><td>{{ appointment.processo or '—' }}</td><td>{{ appointment.profissional }}</td><td>{{ appointment.observacao or '—' }}{% if appointment.observacao_falta %}<br><strong>Relato da falta:</strong> {{ appointment.observacao_falta }}{% endif %}</td><td><strong>{{ appointment.status or 'Agendado' }}</strong>{% if appointment.status == 'Faltou' %}<div class="attendance-alert">Alerta: não compareceu ao agendamento marcado.</div>{% endif %}</td><td><div class="status-actions"><a class="btn alt" href="{{ url_for('comprovante_agendamento', appointment_id=appointment.id) }}">Comprovante</a>{% if (appointment.status or 'Agendado') != 'Cancelado' %}<form method="post" action="{{ url_for('atualizar_status_agendamento', appointment_id=appointment.id) }}"><input type="hidden" name="status" value="Compareceu"><button class="btn" type="submit">Compareceu</button></form><form method="post" action="{{ url_for('atualizar_status_agendamento', appointment_id=appointment.id) }}"><input type="hidden" name="status" value="Faltou"><label class="absence-note">Observação da falta<textarea name="observacao_falta" rows="2" placeholder="Motivo ou justificativa da falta"></textarea></label><button class="btn warning" type="submit">Faltou</button></form><form method="post" action="{{ url_for('cancelar_agendamento', appointment_id=appointment.id) }}"><button class="btn alt" type="submit">Cancelar</button></form>{% endif %}</div></td></tr>{% endfor %}</table>
+	{% else %}<p class="muted">Nenhum retorno agendado.</p>{% endif %}
+</div>
+<script>
+	const availableDates = {{ available_dates|tojson }};
+	const professionalSelect = document.getElementById('appointment-professional');
+	const dateSelect = document.getElementById('appointment-date');
+
+	professionalSelect.addEventListener('change', () => {
+		const dates = availableDates[professionalSelect.value] || [];
+		dateSelect.replaceChildren(new Option(
+			dates.length ? 'Selecione' : 'Nenhuma data disponível', '', true, true
+		));
+		dates.forEach((dateValue) => {
+			const [year, month, day] = dateValue.split('-');
+			dateSelect.add(new Option(`${day}/${month}/${year}`, dateValue));
+		});
+		dateSelect.disabled = dates.length === 0;
+	});
+</script>
+{% endblock %}

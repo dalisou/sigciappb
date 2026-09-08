@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Perfis</h1>
+<div class="card">
+	<h2>Solicitações pendentes</h2>
+	{% if requests %}
+	<table><tr><th>Nome</th><th>E-mail</th><th>Solicitado em</th><th>Perfil</th><th>Ação</th></tr>
+	{% for item in requests %}<tr><td>{{ item.nome }}</td><td>{{ item.email }}</td><td>{{ item.criado_em }}</td><td><form method="post" action="{{ url_for('aprovar_solicitacao', user_id=item.id) }}"><select name="perfil"><option value="profissional">Profissional</option><option value="administrador">Administrador</option></select></td><td><button class="btn" type="submit">Aprovar</button></form><form method="post" action="{{ url_for('rejeitar_solicitacao', user_id=item.id) }}"><button class="btn warning" type="submit">Rejeitar</button></form> <a class="btn alt" href="{{ url_for('editar_perfil', user_id=item.id) }}">Editar</a></td></tr>{% endfor %}</table>
+	{% else %}<p class="muted">Nenhuma solicitação pendente.</p>{% endif %}
+</div>
+<div class="card">
+	<h2>Usuários aprovados</h2>
+	<table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th></th></tr>
+	{% for item in users %}<tr><td>{{ item.nome }}</td><td>{{ item.email }}</td><td>{{ item.perfil|title }}</td><td>{{ item.status|title }}</td><td><a class="btn alt" href="{{ url_for('editar_perfil', user_id=item.id) }}">Editar perfil</a></td></tr>{% endfor %}
+	</table>
+</div>
+{% endblock %}

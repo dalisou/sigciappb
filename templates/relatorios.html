@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="report-header">
+	<div>
+		<p class="eyebrow">CENTRAL DE ACOMPANHAMENTO</p>
+		<h1>Relatórios</h1>
+		<p class="muted">Leitura operacional dos assistidos que não compareceram aos retornos agendados.</p>
+	</div>
+	<div class="actions report-actions"><button type="button" onclick="window.print()">Imprimir relatório</button><a class="btn alt" href="{{ url_for('agendamentos') }}">Voltar aos agendamentos</a></div>
+</div>
+<div class="card report-intro">
+	<div><strong>Modelo ativo</strong><span>Faltas em agendamento</span></div>
+	<div><strong>Objetivo</strong><span>Separar casos com relato, sem relato e recorrentes para orientar contato, reagendamento ou análise de descumprimento.</span></div>
+	<div><strong>Critério</strong><span>Somente registros com status <b>Faltou</b>. A ausência de observação não presume falta injustificada.</span></div>
+</div>
+<form class="card report-filters" method="get">
+	<div class="grid">
+		<label>Data inicial<input type="date" name="inicio" value="{{ filters.inicio }}"></label>
+		<label>Data final<input type="date" name="fim" value="{{ filters.fim }}"></label>
+		<label>Profissional<select name="profissional"><option value="">Todos</option>{% for item in professionals %}<option value="{{ item.profissional }}" {% if filters.profissional == item.profissional %}selected{% endif %}>{{ item.profissional }}</option>{% endfor %}</select></label>
+		<label>Registro da falta<select name="justificativa"><option value="todos" {% if filters.justificativa == 'todos' %}selected{% endif %}>Todos</option><option value="com_relato" {% if filters.justificativa == 'com_relato' %}selected{% endif %}>Com relato registrado</option><option value="sem_relato" {% if filters.justificativa == 'sem_relato' %}selected{% endif %}>Sem relato registrado</option></select></label>
+	</div>
+	<div class="actions"><button>Atualizar relatório</button><a class="btn alt" href="{{ url_for('relatorios') }}">Limpar filtros</a></div>
+</form>
+<div class="grid report-stats">
+	<div class="card stat-card"><span>Total de faltas</span><strong>{{ report_stats.total }}</strong><small>No recorte selecionado</small></div>
+	<div class="card stat-card stat-alert"><span>Sem relato</span><strong>{{ report_stats.without_note }}</strong><small>Requer contato ou análise</small></div>
+	<div class="card stat-card stat-warm"><span>Com relato</span><strong>{{ report_stats.with_note }}</strong><small>Motivo informado pelo profissional</small></div>
+	<div class="card stat-card"><span>Assistidos recorrentes</span><strong>{{ report_stats.recurring_people }}</strong><small>Mais de uma falta no recorte</small></div>
+</div>
+<div class="grid report-columns">
+	<div class="card">
+		<h2>Leitura rápida</h2>
+		<p class="report-callout">{% if report_stats.total %}O profissional com mais registros no recorte é <strong>{{ report_stats.top_professional }}</strong>.{% else %}Não há faltas para o recorte selecionado.{% endif %}</p>
+		<h3>Faltas por profissional</h3>
+		{% if by_professional %}<ul class="report-ranking">{% for name, total in by_professional %}<li><span>{{ name }}</span><b>{{ total }}</b></li>{% endfor %}</ul>{% else %}<p class="muted">Sem dados para classificar.</p>{% endif %}
+	</div>
+	<div class="card report-legend">
+		<h2>Como usar este modelo</h2>
+		<p><span class="legend-dot high"></span><strong>Alta prioridade:</strong> falta sem relato ou recorrente.</p>
+		<p><span class="legend-dot follow"></span><strong>Acompanhar:</strong> há relato registrado e não há recorrência no recorte.</p>
+		<p class="muted">O relatório não decide se a falta é justificada. A justificativa deve ser analisada pelo profissional responsável.</p>
+	</div>
+</div>
+<div class="card report-table-card">
+	<div class="report-table-heading"><div><h2>Detalhamento das faltas</h2><p class="muted">Use os links para consultar o histórico do assistido ou o comprovante do agendamento.</p></div><span class="report-count">{{ absences|length }} registro(s)</span></div>
+	{% if absences %}<div class="table-scroll"><table class="report-table"><tr><th>Data e hora</th><th>Assistido</th><th>Profissional</th><th>Classificação</th><th>Prioridade</th><th>Relato da falta</th><th>Ações</th></tr>
+	{% for item in absences %}<tr class="{% if item.prioridade == 'Alta' %}report-row-high{% endif %}"><td><strong>{{ item.data[8:10] }}/{{ item.data[5:7] }}/{{ item.data[0:4] }}</strong><br><span class="muted">{{ item.hora }}</span></td><td><a href="{{ url_for('pessoa', pid=item.pessoa_id) }}">{{ item.nome }}</a><br><small>{{ item.processo or 'Processo não informado' }}</small></td><td>{{ item.profissional }}</td><td><span class="report-tag">{{ item.classificacao }}</span>{% if item.recorrente %}<br><small>Recorrente no período</small>{% endif %}</td><td><span class="priority priority-{{ item.prioridade|lower }}">{{ item.prioridade }}</span></td><td>{{ item.observacao_falta or 'Nenhum relato registrado.' }}</td><td><a class="btn alt" href="{{ url_for('comprovante_agendamento', appointment_id=item.id) }}" target="_blank">Comprovante</a></td></tr>{% endfor %}</table></div>{% else %}<div class="empty-report"><strong>Nenhuma falta encontrada.</strong><span>Ajuste os filtros ou aguarde novos registros de comparecimento.</span></div>{% endif %}
+</div>
+{% endblock %}

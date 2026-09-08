@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>{{ title }}</h1>
+<form method="post">
+	<div class="card">
+		<div class="grid">
+			{% for field in attendance_fields %}
+			<label>{{ attendance_labels[field] }}
+				{% if field in ['relato','intervencao','pendencias','recomendacao'] %}
+				<textarea name="{{ field }}">{{ attendance[field] if attendance else '' }}</textarea>
+				{% else %}
+				<input name="{{ field }}" value="{{ attendance[field] if attendance else '' }}" {% if field == 'data' %}type="date"{% endif %}>
+				{% endif %}
+			</label>
+			{% endfor %}
+		</div>
+	</div>
+	<button>Salvar atendimento</button>
+</form>
+{% endblock %}

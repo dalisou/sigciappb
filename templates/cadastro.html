@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="login card">
+	<h1>Solicitar acesso</h1>
+	<p class="muted">O administrador validará seu cadastro antes do primeiro acesso.</p>
+	<form method="post">
+		<label>Nome completo<input name="nome" required autocomplete="name"></label>
+		<label>E-mail<input name="email" type="email" required autocomplete="email"></label>
+		<label>Senha<input name="senha" type="password" minlength="6" pattern="[A-Za-z0-9]{6,}" required autocomplete="new-password"><small>Use no mínimo 6 caracteres, somente letras e números.</small></label>
+		<label>Confirmar senha<input name="confirmacao" type="password" minlength="6" pattern="[A-Za-z0-9]{6,}" required autocomplete="new-password"></label>
+		<div class="actions"><button>Enviar solicitação</button><a class="btn alt" href="{{ url_for('login') }}">Voltar ao login</a></div>
+	</form>
+</div>
+{% endblock %}
