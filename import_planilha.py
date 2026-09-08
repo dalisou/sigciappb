@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from pathlib import Path
 import argparse
+import os
 import re
 import sqlite3
 import unicodedata
@@ -8,6 +9,12 @@ import unicodedata
 from openpyxl import load_workbook
 
 from app import DB, FIELDS, init_db
+
+# Tenta importar psycopg2 se disponível (para PostgreSQL)
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None
 
 
 def normalize(value):
@@ -68,13 +75,25 @@ def column_mapping(headers):
     return {index: labels.get(normalize(header)) for index, header in enumerate(headers)}
 
 
-def is_duplicate(connection, values):
+def get_connection():
+    db_url = os.getenv("DATABASE_URL")
+    if db_url and db_url.startswith("postgres"):
+        if not psycopg2:
+            raise ImportError("Instale o psycopg2-binary: pip install psycopg2-binary")
+        return psycopg2.connect(db_url), True
+    return sqlite3.connect(DB), False
+
+
+def is_duplicate(connection, is_postgres, values):
+    placeholder = "%s" if is_postgres else "?"
+    cursor = connection.cursor() if is_postgres else connection
     for field in ("cpf", "processo", "rji"):
         value = values.get(field, "")
-        if value and connection.execute(
-            f"SELECT 1 FROM pessoas WHERE {field} = ? LIMIT 1", (value,)
-        ).fetchone():
-            return True
+        if value:
+            query = f"SELECT 1 FROM pessoas WHERE {field} = {placeholder} LIMIT 1"
+            cursor.execute(query, (value,))
+            if cursor.fetchone():
+                return True
     return False
 
 
@@ -100,22 +119,28 @@ def import_rows(path, sheet_name):
         raise ValueError(f"Colunas não mapeadas: {', '.join(missing)}")
 
     init_db()
-    connection = sqlite3.connect(DB)
+    connection, is_postgres = get_connection()
     inserted = skipped_empty = skipped_duplicate = 0
     now = datetime.now().isoformat(timespec="seconds")
-    placeholders = ", ".join("?" for _ in FIELDS)
+    
+    placeholder = "%s" if is_postgres else "?"
+    placeholders = ", ".join(placeholder for _ in FIELDS)
     columns = ", ".join(FIELDS)
+    
     try:
+        cursor = connection.cursor() if is_postgres else connection
         for row in rows:
             values = {field: text_value(row[index]) for index, field in mapping.items() if field}
             if not values.get("nome"):
                 skipped_empty += 1
                 continue
-            if is_duplicate(connection, values):
+            if is_duplicate(connection, is_postgres, values):
                 skipped_duplicate += 1
                 continue
-            connection.execute(
-                f"INSERT INTO pessoas(criado_em, criado_por, {columns}) VALUES (?, ?, {placeholders})",
+            
+            insert_query = f"INSERT INTO pessoas(criado_em, criado_por, {columns}) VALUES ({placeholder}, {placeholder}, {placeholders})"
+            cursor.execute(
+                insert_query,
                 (now, None, *(values.get(field, "") for field in FIELDS)),
             )
             inserted += 1
