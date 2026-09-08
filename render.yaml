@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: sigciappb
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
+    envVars:
+      - key: CIAP_AUTO_IMPORT
+        value: "1"
+      - key: CIAP_IMPORT_SHEET
+        value: Dash_Base_Dados
+      - key: CIAP_SECRET
+        generateValue: true

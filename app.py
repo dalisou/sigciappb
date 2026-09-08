@@ -190,6 +190,30 @@ def init_db():
     connection.close()
 
 
+def bootstrap_planilha():
+    if os.environ.get("CIAP_AUTO_IMPORT", "1") != "1":
+        return
+    spreadsheet = Path(os.environ.get(
+        "CIAP_IMPORT_FILE", BASE / "BASE_ATENDIMENTOS_CIAP_2026_COMPLETA (Recuperado).xlsx"
+    )).resolve()
+    if not spreadsheet.is_file():
+        app.logger.info("Planilha de importação não encontrada: %s", spreadsheet)
+        return
+    connection = db()
+    people_count = connection.execute("SELECT COUNT(*) FROM pessoas").fetchone()[0]
+    connection.close()
+    if people_count:
+        return
+    from import_planilha import import_rows
+
+    sheet_name = os.environ.get("CIAP_IMPORT_SHEET", "Dash_Base_Dados")
+    inserted, empty, duplicate = import_rows(spreadsheet, sheet_name)
+    app.logger.info(
+        "Importação inicial concluída: inseridos=%s vazios=%s duplicados=%s",
+        inserted, empty, duplicate,
+    )
+
+
 def audit(action, entity, entity_id=None):
     connection = db()
     connection.execute(
@@ -1143,6 +1167,7 @@ def exportar():
 
 
 init_db()
+bootstrap_planilha()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

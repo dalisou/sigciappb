@@ -38,6 +38,20 @@ Acesse `http://localhost:5000`.
 - Grupos reflexivos separados por categoria em lotes de até 20 pessoas.
 - Exportação da base cadastrada em CSV compatível com planilhas.
 
+## Deploy no Render
+
+O arquivo `render.yaml` configura o serviço web com Gunicorn. No primeiro boot, se o banco estiver vazio, a aplicação importa automaticamente a planilha `BASE_ATENDIMENTOS_CIAP_2026_COMPLETA (Recuperado).xlsx` da raiz do projeto, usando a aba `Dash_Base_Dados`. A importação não é repetida quando já existem assistidos.
+
+Para manter o SQLite após reinicializações ou novos deploys, configure um Persistent Disk no serviço do Render e monte-o em `/opt/render/project/src/data`. Sem disco persistente, o Render pode apagar o banco local e a aplicação fará novamente apenas a carga inicial da planilha.
+
+Variáveis opcionais de importação:
+
+```text
+CIAP_AUTO_IMPORT=1
+CIAP_IMPORT_FILE=BASE_ATENDIMENTOS_CIAP_2026_COMPLETA (Recuperado).xlsx
+CIAP_IMPORT_SHEET=Dash_Base_Dados
+```
+
 ## Produção
 
 Defina uma chave secreta forte e mantenha dados e documentos fora do diretório público da aplicação quando possível:
