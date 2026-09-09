@@ -86,7 +86,7 @@ def get_connection():
 
 def is_duplicate(connection, is_postgres, values):
     placeholder = "%s" if is_postgres else "?"
-    cursor = connection.cursor() if is_postgres else connection
+    cursor = connection.cursor()
     for field in ("cpf", "processo", "rji"):
         value = values.get(field, "")
         if value:
