@@ -1,5 +1,3 @@
-from datetime import date, datetime, timedelta
-from pathlib import Path
 import csv
 import io
 import json
@@ -7,36 +5,56 @@ import os
 import re
 import smtplib
 import sqlite3
+from datetime import date, datetime, timedelta
 from email.message import EmailMessage
+from pathlib import Path
 
-from flask import Flask, Response, flash, redirect, render_template, request, send_file, session, url_for
+from flask import (
+    Flask,
+    Response,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    session,
+    url_for,
+)
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
-from flask_sqlalchemy import SQLAlchemy
 
+# 1. Instância principal da aplicação
+app = Flask(__name__)
+app.secret_key = os.environ.get("CIAP_SECRET", "ciap-dev-secret-change-me")
+
+# 2. Definição dos diretórios locais e caminho do banco legado (DB)
 BASE = Path(__file__).parent
+DB = Path(os.environ.get("CIAP_DB_PATH", BASE / "data" / "ciap.db")).resolve()
 UPLOADS = Path(os.environ.get("CIAP_DOCUMENTS_DIR", BASE / "documentos")).resolve()
-UPLOADS.mkdir(parents=True, exist_ok=True)
 
-# Configuração do Banco Dinâmico (Render / SQLite Local)
-db_url = os.getenv("DATABASE_URL", "sqlite:///" + str(BASE / "data" / "ciap.db"))
+UPLOADS.mkdir(parents=True, exist_ok=True)
+DB.parent.mkdir(parents=True, exist_ok=True)
+
+# 3. Configuração dinâmica do Banco de Dados (Render / SQLite Local)
+db_url = os.getenv("DATABASE_URL", f"sqlite:///{DB}")
 
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = db_url
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-db = SQLAlchemy(app)
-
-app = Flask(__name__)
-app.secret_key = os.environ.get("CIAP_SECRET", "ciap-dev-secret-change-me")
+# 4. Configurações extras de segurança e upload
 app.config.update(
     MAX_CONTENT_LENGTH=int(os.environ.get("CIAP_MAX_UPLOAD_BYTES", 25 * 1024 * 1024)),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.environ.get("CIAP_HTTPS", "0") == "1",
 )
+
+# 5. Inicialização do SQLAlchemy com o app já configurado
+db = SQLAlchemy(app)
 ADMIN_EMAIL = os.environ.get("CIAP_ADMIN_EMAIL", "ciapcadastro@gmail.com")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PASSWORD_PATTERN = re.compile(r"^[A-Za-z0-9]{6,}$")
