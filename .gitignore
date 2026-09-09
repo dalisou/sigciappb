@@ -7,4 +7,4 @@ documentos/*
 backups/*
 !backups/.gitkeep
 *.xlsx
-*.xls
+*.xls*.xlsx
