@@ -6,3 +6,5 @@ documentos/*
 !documentos/.gitkeep
 backups/*
 !backups/.gitkeep
+*.xlsx
+*.xls
