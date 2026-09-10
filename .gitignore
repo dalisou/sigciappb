@@ -7,4 +7,6 @@ documentos/*
 backups/*
 !backups/.gitkeep
 *.xlsx
-*.xls*.xlsx
+*.xls
+*.sqlite3
+*.db

@@ -6,7 +6,7 @@ services:
     startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
     envVars:
       - key: CIAP_AUTO_IMPORT
-        value: "1"
+        value: "0"
       - key: CIAP_IMPORT_SHEET
         value: Dash_Base_Dados
       - key: CIAP_SECRET
@@ -14,6 +14,18 @@ services:
       - key: CIAP_ADMIN_PASSWORD
         generateValue: true
       - key: CIAP_ADMIN_EMAIL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: CIAP_S3_BUCKET
+        sync: false
+      - key: CIAP_S3_ENDPOINT_URL
+        sync: false
+      - key: CIAP_S3_REGION
+        value: auto
+      - key: CIAP_S3_ACCESS_KEY_ID
+        sync: false
+      - key: CIAP_S3_SECRET_ACCESS_KEY
         sync: false
       - key: CIAP_ENV
         value: production

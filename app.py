@@ -26,10 +26,25 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
+try:
+    import psycopg2
+    from psycopg2 import IntegrityError
+    from psycopg2.extras import RealDictCursor
+except ImportError:
+    psycopg2 = None
+    IntegrityError = RuntimeError
+    RealDictCursor = None
+
+try:
+    import boto3
+except ImportError:
+    boto3 = None
+
 # 1. Instância principal da aplicação
 app = Flask(__name__)
+IS_PRODUCTION = os.environ.get("CIAP_ENV", "").lower() == "production" or os.environ.get("FLASK_ENV", "").lower() == "production"
 app.secret_key = os.environ.get("CIAP_SECRET", "ciap-dev-secret-change-me")
-if os.environ.get("CIAP_ENV") == "production" and app.secret_key == "ciap-dev-secret-change-me":
+if IS_PRODUCTION and app.secret_key == "ciap-dev-secret-change-me":
     raise RuntimeError("CIAP_SECRET deve ser configurada em produção")
 
 # 2. Definição dos diretórios locais e caminho do banco legado (DB)
@@ -59,13 +74,101 @@ app.config.update(
 
 # 5. Inicialização do SQLAlchemy com o app já configurado
 db = SQLAlchemy(app)
+
+
+class PostgresCursor:
+    def __init__(self, cursor):
+        self.cursor = cursor
+
+    def __iter__(self):
+        return iter(self.cursor)
+
+    @property
+    def lastrowid(self):
+        row = self.cursor.fetchone()
+        return row["id"] if row else None
+
+    def fetchone(self):
+        return self.cursor.fetchone()
+
+    def fetchall(self):
+        return self.cursor.fetchall()
+
+
+class PostgresConnection:
+    def __init__(self, connection):
+        self.connection = connection
+
+    def execute(self, query, parameters=()):
+        query = query.replace("?", "%s")
+        stripped = query.rstrip().rstrip(";")
+        if stripped.lstrip().upper().startswith("INSERT ") and " RETURNING " not in stripped.upper():
+            query = f"{stripped} RETURNING id"
+        cursor = self.connection.cursor()
+        cursor.execute(query, parameters)
+        return PostgresCursor(cursor)
+
+    def commit(self):
+        self.connection.commit()
+
+    def rollback(self):
+        self.connection.rollback()
+
+    def close(self):
+        self.connection.close()
+
+
+def using_postgres():
+    return db_url.startswith(("postgres://", "postgresql://", "postgresql+psycopg2://"))
+
+
+def postgres_url():
+    return db_url.replace("postgresql+psycopg2://", "postgresql://", 1)
+
+
+def using_object_storage():
+    return bool(os.environ.get("CIAP_S3_BUCKET"))
+
+
+def object_storage():
+    if boto3 is None:
+        raise RuntimeError("boto3 é necessário quando CIAP_S3_BUCKET está configurado")
+    options = {
+        "service_name": "s3",
+        "endpoint_url": os.environ.get("CIAP_S3_ENDPOINT_URL") or None,
+        "region_name": os.environ.get("CIAP_S3_REGION", "auto"),
+    }
+    access_key = os.environ.get("CIAP_S3_ACCESS_KEY_ID")
+    secret_key = os.environ.get("CIAP_S3_SECRET_ACCESS_KEY")
+    if access_key and secret_key:
+        options.update(aws_access_key_id=access_key, aws_secret_access_key=secret_key)
+    return boto3.client(**options)
+
+
+def storage_upload(stream, filename):
+    extra_args = {}
+    encryption = os.environ.get("CIAP_S3_SERVER_SIDE_ENCRYPTION", "")
+    if encryption:
+        extra_args["ServerSideEncryption"] = encryption
+    object_storage().upload_fileobj(
+        stream,
+        os.environ["CIAP_S3_BUCKET"],
+        f"documentos/{filename}",
+        ExtraArgs=extra_args,
+    )
 ADMIN_EMAIL = os.environ.get("CIAP_ADMIN_EMAIL", "admin@ciap.local")
 ADMIN_PASSWORD = os.environ.get("CIAP_ADMIN_PASSWORD", "admin123")
-if os.environ.get("CIAP_ENV") == "production":
+if IS_PRODUCTION:
     if not os.environ.get("CIAP_ADMIN_EMAIL"):
         raise RuntimeError("CIAP_ADMIN_EMAIL deve ser configurado em produção")
     if not os.environ.get("CIAP_ADMIN_PASSWORD"):
         raise RuntimeError("CIAP_ADMIN_PASSWORD deve ser configurado em produção")
+    if ADMIN_EMAIL == "admin@ciap.local" or ADMIN_PASSWORD == "admin123":
+        raise RuntimeError("Credenciais administrativas padrão não podem ser usadas em produção")
+    if not using_postgres():
+        raise RuntimeError("DATABASE_URL PostgreSQL deve ser configurada em produção")
+    if not using_object_storage():
+        raise RuntimeError("CIAP_S3_BUCKET deve ser configurado em produção")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PASSWORD_PATTERN = re.compile(r"^[A-Za-z0-9]{6,}$")
 
@@ -133,12 +236,98 @@ MONTH_DAY_OPTIONS = [(day, str(day)) for day in range(1, 32)]
 
 
 def db():
+    if using_postgres():
+        if psycopg2 is None:
+            raise RuntimeError("psycopg2-binary é necessário para DATABASE_URL PostgreSQL")
+        return PostgresConnection(psycopg2.connect(postgres_url(), cursor_factory=RealDictCursor))
     connection = sqlite3.connect(DB)
     connection.row_factory = sqlite3.Row
     return connection
 
 
+def table_columns(connection, table_name):
+    if using_postgres():
+        rows = connection.execute(
+            "SELECT column_name AS name FROM information_schema.columns "
+            "WHERE table_schema = current_schema() AND table_name = ?",
+            (table_name,),
+        ).fetchall()
+        return {row["name"] for row in rows}
+    return {row[1] for row in connection.execute(f"PRAGMA table_info({table_name})")}
+
+
+def init_postgres_db():
+    connection = db()
+    field_sql = ", ".join(f'"{field}" TEXT' for field in FIELDS)
+    attendance_sql = ", ".join(f'"{field}" TEXT' for field in ATTENDANCE_FIELDS)
+    statements = [
+        """CREATE TABLE IF NOT EXISTS users (
+            id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY, nome TEXT, email TEXT UNIQUE,
+            senha TEXT, cargo TEXT, perfil TEXT DEFAULT 'profissional', status TEXT DEFAULT 'pendente',
+            ativo INTEGER DEFAULT 1, criado_em TEXT DEFAULT '', aprovado_em TEXT DEFAULT ''
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS pessoas (
+            id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY, criado_em TEXT, criado_por BIGINT,
+            documentos TEXT DEFAULT '', {field_sql}, situacao_grupo TEXT DEFAULT '', alerta_frequencia TEXT DEFAULT ''
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS atendimentos (
+            id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY, pessoa_id BIGINT, {attendance_sql},
+            criado_por BIGINT, criado_em TEXT
+        )""",
+        """CREATE TABLE IF NOT EXISTS agendamentos (
+            id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY, pessoa_id BIGINT NOT NULL,
+            profissional TEXT NOT NULL, data TEXT NOT NULL, hora TEXT NOT NULL, observacao TEXT DEFAULT '',
+            observacao_falta TEXT DEFAULT '', status TEXT DEFAULT 'Agendado', criado_por BIGINT, criado_em TEXT
+        )""",
+        """CREATE TABLE IF NOT EXISTS alertas_agendamento (
+            id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY, pessoa_id BIGINT NOT NULL,
+            profissional TEXT NOT NULL, data_preferencial TEXT DEFAULT '', hora_preferencial TEXT DEFAULT '',
+            observacao TEXT DEFAULT '', status TEXT DEFAULT 'Aguardando vaga', criado_por BIGINT, criado_em TEXT
+        )""",
+        """CREATE TABLE IF NOT EXISTS disponibilidades (
+            id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY, profissional TEXT NOT NULL,
+            dia_mes INTEGER NOT NULL, hora_inicio TEXT NOT NULL, hora_fim TEXT NOT NULL,
+            criado_por BIGINT, criado_em TEXT
+        )""",
+        """CREATE TABLE IF NOT EXISTS frequencias (
+            id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY, pessoa_id BIGINT NOT NULL,
+            encontro INTEGER NOT NULL, status TEXT DEFAULT '', data TEXT DEFAULT '',
+            UNIQUE(pessoa_id, encontro)
+        )""",
+        """CREATE TABLE IF NOT EXISTS auditoria (
+            id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY, usuario_id BIGINT, acao TEXT,
+            entidade TEXT, entidade_id BIGINT, criado_em TEXT
+        )""",
+    ]
+    for statement in statements:
+        connection.execute(statement)
+    connection.execute(
+        "UPDATE users SET perfil = 'administrador', status = 'aprovado' WHERE cargo = 'Administrador'"
+    )
+    connection.execute(
+        "UPDATE pessoas SET alerta_frequencia = CASE "
+        "WHEN (SELECT COUNT(*) FROM frequencias f WHERE f.pessoa_id = pessoas.id AND f.status = 'Faltou') >= 3 "
+        "THEN 'ALERTA: 3 ou mais faltas. Assistido eliminado e deve refazer o grupo.' "
+        "WHEN (SELECT COUNT(*) FROM frequencias f WHERE f.pessoa_id = pessoas.id AND f.status = 'Faltou') = 2 "
+        "THEN 'ALERTA: 2 faltas registradas. Na próxima falta, o Assistido será eliminado e deverá refazer o grupo.' "
+        "ELSE '' END"
+    )
+    if not connection.execute("SELECT 1 FROM users LIMIT 1").fetchone():
+        connection.execute(
+            "INSERT INTO users(nome, email, senha, cargo, perfil, status, criado_em, aprovado_em) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("Administrador", ADMIN_EMAIL, generate_password_hash(ADMIN_PASSWORD), "Administrador",
+             "administrador", "aprovado", datetime.now().isoformat(timespec="seconds"),
+             datetime.now().isoformat(timespec="seconds")),
+        )
+    connection.commit()
+    connection.close()
+
+
 def init_db():
+    if using_postgres():
+        init_postgres_db()
+        return
     connection = db()
     connection.executescript(
         """
@@ -186,19 +375,19 @@ def init_db():
             ", ".join(f"{field} TEXT" for field in ATTENDANCE_FIELDS),
         )
     )
-    columns = {row[1] for row in connection.execute("PRAGMA table_info(pessoas)")}
+    columns = table_columns(connection, "pessoas")
     for field in ("situacao_grupo", "alerta_frequencia"):
         if field not in columns:
             connection.execute(f'ALTER TABLE pessoas ADD COLUMN {field} TEXT DEFAULT ""')
-    availability_columns = {row[1] for row in connection.execute("PRAGMA table_info(disponibilidades)")}
+    availability_columns = table_columns(connection, "disponibilidades")
     if "dia_mes" not in availability_columns:
         connection.execute("ALTER TABLE disponibilidades ADD COLUMN dia_mes INTEGER")
-    appointment_columns = {row[1] for row in connection.execute("PRAGMA table_info(agendamentos)")}
+    appointment_columns = table_columns(connection, "agendamentos")
     if "status" not in appointment_columns:
         connection.execute("ALTER TABLE agendamentos ADD COLUMN status TEXT DEFAULT 'Agendado'")
     if "observacao_falta" not in appointment_columns:
         connection.execute('ALTER TABLE agendamentos ADD COLUMN observacao_falta TEXT DEFAULT ""')
-    user_columns = {row[1] for row in connection.execute("PRAGMA table_info(users)")}
+    user_columns = table_columns(connection, "users")
     if "perfil" not in user_columns:
         connection.execute("ALTER TABLE users ADD COLUMN perfil TEXT DEFAULT 'profissional'")
     if "status" not in user_columns:
@@ -306,6 +495,13 @@ def upload_filename(person_id, document_index, original_name):
     if not safe_name:
         raise ValueError("Nome de arquivo inválido")
     return f"{person_id}_{document_index}_{secrets.token_hex(8)}_{safe_name}"
+
+
+def save_document(uploaded, filename):
+    if using_object_storage():
+        storage_upload(uploaded.stream, filename)
+    else:
+        uploaded.save(UPLOADS / filename)
 
 
 @app.before_request
@@ -416,7 +612,9 @@ def cadastro():
                  "pendente", 0, datetime.now().isoformat(timespec="seconds")),
             )
             connection.commit()
-        except sqlite3.IntegrityError:
+        except (sqlite3.IntegrityError, IntegrityError):
+            if using_postgres():
+                connection.rollback()
             connection.close()
             flash("Este e-mail já possui cadastro ou solicitação.")
             return render_template("cadastro.html", title="Solicitar acesso")
@@ -486,7 +684,9 @@ def editar_perfil(user_id):
                 values.append(user_id)
                 connection.execute("UPDATE users SET %s WHERE id = ?" % ", ".join(fields), values)
                 connection.commit()
-            except sqlite3.IntegrityError:
+            except (sqlite3.IntegrityError, IntegrityError):
+                if using_postgres():
+                    connection.rollback()
                 flash("Este e-mail já está sendo usado por outro usuário.")
             else:
                 connection.close()
@@ -709,7 +909,7 @@ def nova():
             for uploaded in request.files.getlist(f"doc_{index}"):
                 if uploaded and uploaded.filename:
                     filename = upload_filename(person_id, index, uploaded.filename)
-                    uploaded.save(UPLOADS / filename)
+                    save_document(uploaded, filename)
                     names.append(filename)
             if names:
                 connection.execute(
@@ -748,7 +948,7 @@ def editar_pessoa(pid):
             for uploaded in request.files.getlist(f"doc_{index}"):
                 if uploaded and uploaded.filename:
                     filename = upload_filename(pid, index, uploaded.filename)
-                    uploaded.save(UPLOADS / filename)
+                    save_document(uploaded, filename)
                     names.append(filename)
             if names:
                 connection.execute(
@@ -985,7 +1185,7 @@ def nova_disponibilidade():
         flash("Preencha profissional, dia e um intervalo de horário válido.")
         return redirect(url_for("agendamentos"))
     connection = db()
-    availability_columns = {row[1] for row in connection.execute("PRAGMA table_info(disponibilidades)")}
+    availability_columns = table_columns(connection, "disponibilidades")
     if "dia_semana" in availability_columns:
         connection.execute(
             "INSERT INTO disponibilidades(profissional, dia_semana, dia_mes, hora_inicio, hora_fim, criado_por, criado_em) "
@@ -1096,6 +1296,17 @@ def agenda_semana():
 def documento(filename):
     if not authenticated():
         return redirect(url_for("login"))
+    if using_object_storage():
+        try:
+            url = object_storage().generate_presigned_url(
+                "get_object",
+                Params={"Bucket": os.environ["CIAP_S3_BUCKET"], "Key": f"documentos/{filename}"},
+                ExpiresIn=300,
+            )
+        except Exception:
+            app.logger.exception("Falha ao gerar URL privada do documento")
+            return "Não encontrado", 404
+        return redirect(url)
     requested = (UPLOADS / filename).resolve()
     if UPLOADS not in requested.parents or not requested.is_file():
         return "Não encontrado", 404
@@ -1218,7 +1429,7 @@ def grupos():
         return redirect(url_for("login"))
     connection = db()
     people = connection.execute(
-        'SELECT * FROM pessoas WHERE grupo_responsabilizacao <> "" ORDER BY grupo_responsabilizacao, nome'
+        "SELECT * FROM pessoas WHERE grupo_responsabilizacao <> '' ORDER BY grupo_responsabilizacao, nome"
     ).fetchall()
     frequencies = connection.execute(
         "SELECT pessoa_id, encontro, status FROM frequencias "
