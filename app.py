@@ -3,8 +3,10 @@ import io
 import json
 import os
 import re
+import secrets
 import smtplib
 import sqlite3
+import hmac
 from datetime import date, datetime, timedelta
 from email.message import EmailMessage
 from pathlib import Path
@@ -27,6 +29,8 @@ from werkzeug.utils import secure_filename
 # 1. Instância principal da aplicação
 app = Flask(__name__)
 app.secret_key = os.environ.get("CIAP_SECRET", "ciap-dev-secret-change-me")
+if os.environ.get("CIAP_ENV") == "production" and app.secret_key == "ciap-dev-secret-change-me":
+    raise RuntimeError("CIAP_SECRET deve ser configurada em produção")
 
 # 2. Definição dos diretórios locais e caminho do banco legado (DB)
 BASE = Path(__file__).parent
@@ -55,7 +59,13 @@ app.config.update(
 
 # 5. Inicialização do SQLAlchemy com o app já configurado
 db = SQLAlchemy(app)
-ADMIN_EMAIL = os.environ.get("CIAP_ADMIN_EMAIL", "ciapcadastro@gmail.com")
+ADMIN_EMAIL = os.environ.get("CIAP_ADMIN_EMAIL", "admin@ciap.local")
+ADMIN_PASSWORD = os.environ.get("CIAP_ADMIN_PASSWORD", "admin123")
+if os.environ.get("CIAP_ENV") == "production":
+    if not os.environ.get("CIAP_ADMIN_EMAIL"):
+        raise RuntimeError("CIAP_ADMIN_EMAIL deve ser configurado em produção")
+    if not os.environ.get("CIAP_ADMIN_PASSWORD"):
+        raise RuntimeError("CIAP_ADMIN_PASSWORD deve ser configurado em produção")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PASSWORD_PATTERN = re.compile(r"^[A-Za-z0-9]{6,}$")
 
@@ -65,6 +75,9 @@ def disable_response_cache(response):
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "same-origin"
     return response
 
 
@@ -210,7 +223,7 @@ def init_db():
         connection.execute(
             "INSERT INTO users(nome, email, senha, cargo, perfil, status, criado_em, aprovado_em) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            ("Administrador", "admin@ciap.local", generate_password_hash("admin123"), "Administrador",
+            ("Administrador", ADMIN_EMAIL, generate_password_hash(ADMIN_PASSWORD), "Administrador",
              "administrador", "aprovado", datetime.now().isoformat(timespec="seconds"),
              datetime.now().isoformat(timespec="seconds")),
         )
@@ -254,6 +267,54 @@ def audit(action, entity, entity_id=None):
 
 def authenticated():
     return "uid" in session and session.get("status") == "aprovado"
+
+
+def csrf_token():
+    token = session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["csrf_token"] = token
+    return token
+
+
+def normalize_identifier(value):
+    return re.sub(r"[^A-Z0-9]", "", (value or "").upper())
+
+
+def find_duplicate_person(connection, values, exclude_id=None):
+    identifiers = {
+        field: normalize_identifier(values[FIELDS.index(field)])
+        for field in ("cpf", "processo", "rji")
+    }
+    identifiers = {field: value for field, value in identifiers.items() if value}
+    if not identifiers:
+        return None
+    query = "SELECT id, cpf, processo, rji FROM pessoas"
+    parameters = []
+    if exclude_id is not None:
+        query += " WHERE id <> ?"
+        parameters.append(exclude_id)
+    for person in connection.execute(query, parameters):
+        for field, value in identifiers.items():
+            if normalize_identifier(person[field]) == value:
+                return field.upper()
+    return None
+
+
+def upload_filename(person_id, document_index, original_name):
+    safe_name = secure_filename(original_name)
+    if not safe_name:
+        raise ValueError("Nome de arquivo inválido")
+    return f"{person_id}_{document_index}_{secrets.token_hex(8)}_{safe_name}"
+
+
+@app.before_request
+def protect_state_changes():
+    if request.method == "POST":
+        submitted = request.form.get("_csrf_token", "")
+        expected = session.get("csrf_token", "")
+        if not expected or not submitted or not hmac.compare_digest(submitted, expected):
+            return "Token de segurança inválido. Recarregue a página e tente novamente.", 400
 
 
 def is_admin():
@@ -306,6 +367,7 @@ def template_context():
         "month_day_options": MONTH_DAY_OPTIONS,
         "is_admin": is_admin(),
         "current_user": session.get("nome", ""),
+        "csrf_token": csrf_token(),
         "static_version": int(max(
             (BASE / "static" / "css" / "style.css").stat().st_mtime,
             (BASE / "static" / "js" / "app.js").stat().st_mtime,
@@ -630,6 +692,11 @@ def nova():
     if request.method == "POST":
         connection = db()
         values = [request.form.get(field, "") for field in FIELDS]
+        duplicate = find_duplicate_person(connection, values)
+        if duplicate:
+            connection.close()
+            flash(f"Cadastro duplicado: o identificador {duplicate} já pertence a outro assistido.")
+            return render_template("pessoa_form.html", title="Novo cadastro")
         cursor = connection.execute(
             "INSERT INTO pessoas(criado_em, criado_por, %s) VALUES (?, ?, %s)" % (
                 ", ".join(FIELDS), ", ".join("?" for _ in FIELDS)
@@ -641,7 +708,7 @@ def nova():
             names = []
             for uploaded in request.files.getlist(f"doc_{index}"):
                 if uploaded and uploaded.filename:
-                    filename = f"{person_id}_{index}_{secure_filename(uploaded.filename)}"
+                    filename = upload_filename(person_id, index, uploaded.filename)
                     uploaded.save(UPLOADS / filename)
                     names.append(filename)
             if names:
@@ -667,6 +734,11 @@ def editar_pessoa(pid):
         return "Não encontrado", 404
     if request.method == "POST":
         values = [request.form.get(field, "") for field in FIELDS]
+        duplicate = find_duplicate_person(connection, values, exclude_id=pid)
+        if duplicate:
+            connection.close()
+            flash(f"Cadastro duplicado: o identificador {duplicate} já pertence a outro assistido.")
+            return render_template("pessoa_form.html", title="Editar cadastro", person=person)
         connection.execute(
             "UPDATE pessoas SET %s WHERE id = ?" % ", ".join(f"{field} = ?" for field in FIELDS),
             (*values, pid),
@@ -675,7 +747,7 @@ def editar_pessoa(pid):
             names = []
             for uploaded in request.files.getlist(f"doc_{index}"):
                 if uploaded and uploaded.filename:
-                    filename = f"{pid}_{index}_{secure_filename(uploaded.filename)}"
+                    filename = upload_filename(pid, index, uploaded.filename)
                     uploaded.save(UPLOADS / filename)
                     names.append(filename)
             if names:
@@ -1036,6 +1108,9 @@ def novo_atendimento(pid):
         return redirect(url_for("login"))
     if request.method == "POST":
         connection = db()
+        if not connection.execute("SELECT 1 FROM pessoas WHERE id = ?", (pid,)).fetchone():
+            connection.close()
+            return "Assistido não encontrado", 404
         cursor = connection.execute(
             "INSERT INTO atendimentos(pessoa_id, %s, criado_por, criado_em) VALUES (?, %s, ?, ?)" % (
                 ", ".join(ATTENDANCE_FIELDS), ", ".join("?" for _ in ATTENDANCE_FIELDS)
@@ -1095,6 +1170,8 @@ def get_person(person_id):
 
 @app.route("/termo/<int:pid>")
 def termo(pid):
+    if not authenticated():
+        return redirect(url_for("login"))
     person = get_person(pid)
     if not person:
         return "Não encontrado", 404
@@ -1104,6 +1181,8 @@ def termo(pid):
 
 @app.route("/retorno/<int:aid>")
 def retorno(aid):
+    if not authenticated():
+        return redirect(url_for("login"))
     connection = db()
     attendance = connection.execute(
         "SELECT a.*, p.nome, p.processo, p.medida FROM atendimentos a "

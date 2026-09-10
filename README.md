@@ -24,7 +24,7 @@ python app.py
 
 Acesse `http://localhost:5000`.
 
-**Acesso inicial:** `admin@ciap.local` / `admin123`. Altere a senha e a variável `CIAP_SECRET` antes de uso institucional.
+**Acesso inicial local:** `admin@ciap.local` / `admin123`. Em produção, configure `CIAP_ADMIN_EMAIL` e `CIAP_ADMIN_PASSWORD` como variáveis secretas antes do primeiro boot.
 
 ## Recursos
 

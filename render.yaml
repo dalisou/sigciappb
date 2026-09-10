@@ -11,3 +11,19 @@ services:
         value: Dash_Base_Dados
       - key: CIAP_SECRET
         generateValue: true
+      - key: CIAP_ADMIN_PASSWORD
+        generateValue: true
+      - key: CIAP_ADMIN_EMAIL
+        sync: false
+      - key: CIAP_ENV
+        value: production
+      - key: CIAP_HTTPS
+        value: "1"
+      - key: CIAP_DB_PATH
+        value: /opt/render/project/src/data/ciap.db
+      - key: CIAP_DOCUMENTS_DIR
+        value: /opt/render/project/src/data/documentos
+    disk:
+      name: sigciappb-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 10

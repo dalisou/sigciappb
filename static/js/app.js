@@ -1,3 +1,15 @@
+document.addEventListener('DOMContentLoaded', () => {
+	const token = document.querySelector('meta[name="csrf-token"]')?.content;
+	if (!token) return;
+	document.querySelectorAll('form[method="post"], form[method="POST"]').forEach((form) => {
+		if (form.querySelector('input[name="_csrf_token"]')) return;
+		const input = document.createElement('input');
+		input.type = 'hidden';
+		input.name = '_csrf_token';
+		input.value = token;
+		form.appendChild(input);
+	});
+});
 const chartField = document.querySelector('#chart-field');
 const dashboardChart = document.querySelector('#dashboard-chart');
 

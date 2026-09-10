@@ -33,6 +33,10 @@ def text_value(value):
     return str(value).strip()
 
 
+def normalize_identifier(value):
+    return re.sub(r"[^A-Z0-9]", "", text_value(value).upper())
+
+
 def column_mapping(headers):
     labels = {
         normalize("Nome do Assistido(a)"): "nome",
@@ -85,15 +89,13 @@ def get_connection():
 
 
 def is_duplicate(connection, is_postgres, values):
-    placeholder = "%s" if is_postgres else "?"
     cursor = connection.cursor()
     for field in ("cpf", "processo", "rji"):
-        value = values.get(field, "")
+        value = normalize_identifier(values.get(field, ""))
         if value:
-            query = f"SELECT 1 FROM pessoas WHERE {field} = {placeholder} LIMIT 1"
-            cursor.execute(query, (value,))
-            if cursor.fetchone():
-                return True
+            cursor.execute(f"SELECT {field} FROM pessoas WHERE {field} IS NOT NULL")
+            if any(normalize_identifier(row[0]) == value for row in cursor.fetchall()):
+                return field
     return False
 
 
@@ -134,7 +136,8 @@ def import_rows(path, sheet_name):
             if not values.get("nome"):
                 skipped_empty += 1
                 continue
-            if is_duplicate(connection, is_postgres, values):
+            duplicate_field = is_duplicate(connection, is_postgres, values)
+            if duplicate_field:
                 skipped_duplicate += 1
                 continue
             
