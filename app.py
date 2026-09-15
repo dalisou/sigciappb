@@ -1453,11 +1453,21 @@ def comprovante_agendamento(appointment_id):
 def grupos():
     if not authenticated():
         return redirect(url_for("login"))
+    group_filter = request.args.get("grupo", "").strip()
     connection = db()
+    responsibility_groups = connection.execute(
+        "SELECT DISTINCT grupo_responsabilizacao FROM pessoas "
+        "WHERE grupo_responsabilizacao <> '' ORDER BY grupo_responsabilizacao"
+    ).fetchall()
+    people_filter = " AND p.grupo_responsabilizacao = ?" if group_filter else ""
+    people_parameters = [group_filter] if group_filter else []
     available_people = connection.execute(
         "SELECT id, nome, processo, grupo_responsabilizacao FROM pessoas "
         "WHERE grupo_responsabilizacao <> '' AND id NOT IN "
-        "(SELECT pessoa_id FROM grupo_participantes) ORDER BY nome"
+        "(SELECT pessoa_id FROM grupo_participantes)"
+        + (" AND grupo_responsabilizacao = ?" if group_filter else "")
+        + " ORDER BY nome",
+        people_parameters,
     ).fetchall()
     group_rows = connection.execute(
         "SELECT id, nome, status, criado_em FROM grupos_reflexivos ORDER BY id DESC"
@@ -1465,7 +1475,9 @@ def grupos():
     participant_rows = connection.execute(
         "SELECT gp.grupo_id, gp.pessoa_id, p.nome, p.processo, p.grupo_responsabilizacao "
         "FROM grupo_participantes gp JOIN pessoas p ON p.id = gp.pessoa_id "
-        "ORDER BY gp.grupo_id DESC, p.nome"
+        + people_filter
+        + " ORDER BY gp.grupo_id DESC, p.nome",
+        people_parameters,
     ).fetchall()
     group_frequency_rows = connection.execute(
         "SELECT grupo_id, pessoa_id, encontro, status, data FROM grupo_frequencias "
@@ -1488,8 +1500,15 @@ def grupos():
         group_data["last_encounter"] = max(registered) if registered else 0
         group_data["recorded_count"] = len(registered)
         group_data["frequency_data"] = {str(participant["pessoa_id"]): {str(encounter): frequency for encounter, frequency in participant["frequencies"].items()} for participant in group_data["participants"]}
-        groups.append(group_data)
-    return render_template("grupos.html", groups=groups, available_people=available_people)
+        if group_data["participants"] or not group_filter:
+            groups.append(group_data)
+    return render_template(
+        "grupos.html",
+        groups=groups,
+        available_people=available_people,
+        responsibility_groups=[row["grupo_responsabilizacao"] for row in responsibility_groups],
+        group_filter=group_filter,
+    )
 
 
 @app.route("/grupos/formar", methods=["POST"])
