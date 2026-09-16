@@ -1,0 +1,15 @@
+<main class="group-frequency-print">
+	<header class="receipt-header"><div class="receipt-institution">CIAP</div><h1>Lista de Frequência</h1></header>
+	<section class="receipt-section"><h2>Identificação do grupo</h2>
+		<div class="print-row"><span class="label">Grupo</span><span>{{ group.nome }}</span></div>
+		<div class="print-row"><span class="label">Encontro</span><span>{{ encounter }}º de 10</span></div>
+		<div class="print-row"><span class="label">Data</span><span>{{ meeting.data[8:10] ~ '/' ~ meeting.data[5:7] ~ '/' ~ meeting.data[0:4] if meeting and meeting.data else '________________________________' }}</span></div>
+		<div class="print-row"><span class="label">Horário</span><span>{{ meeting.horario if meeting and meeting.horario else '________________' }}</span></div>
+		<div class="print-row"><span class="label">Facilitadores</span><span>{{ meeting.facilitadores if meeting and meeting.facilitadores else '________________________________' }}</span></div>
+	</section>
+	<section class="receipt-section"><h2>Assinatura dos assistidos</h2>
+		<table class="frequency-print-table"><thead><tr><th>Nº</th><th>Nome</th><th>CPF</th><th>Assinatura do assistido</th></tr></thead><tbody>
+		{% for participant in participants %}<tr><td>{{ loop.index }}</td><td>{{ participant.nome }}</td><td>{{ participant.cpf or 'Não informado' }}</td><td></td></tr>{% endfor %}
+		</tbody></table>
+	</section>
+</main>
