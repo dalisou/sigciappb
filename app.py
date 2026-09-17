@@ -244,8 +244,29 @@ ATTENDANCE_LABELS = dict(zip(ATTENDANCE_FIELDS, [
     "Intervenção do profissional da CIAP", "Encaminhamentos pendentes/próximos passos", "Conclusão: Regular ou Irregular/Risco",
     "Recomendação ao Juízo",
 ]))
-PROFESSIONAL_OPTIONS = ["Assistente Jurídico", "Assistente Social", "Psicólogo"]
+PROFESSIONAL_OPTIONS = [
+    ("profissional_psicologo", "Profissional Psicólogo"),
+    ("profissional_assistente_social", "Profissional Assistente Social"),
+    ("profissional_advogado", "Profissional Advogado"),
+    ("profissional_administrativo", "Profissional Administrativo"),
+]
+ADMIN_PROFILE = "administrador"
 MONTH_DAY_OPTIONS = [(day, str(day)) for day in range(1, 32)]
+
+
+def perfil_labels():
+    return [(ADMIN_PROFILE, "Administrador"), *PROFESSIONAL_OPTIONS]
+
+
+def perfil_valido(perfil):
+    return perfil in {value for value, _ in perfil_labels()} or perfil == "profissional"
+
+
+def perfil_nome(perfil):
+    labels = dict(perfil_labels())
+    if perfil == "profissional":
+        return "Profissional"
+    return labels.get(perfil, perfil.replace("_", " ").title())
 
 
 def db():
@@ -720,14 +741,14 @@ def editar_perfil(user_id):
         password = request.form.get("senha", "")
         if not name or not EMAIL_PATTERN.fullmatch(email):
             flash("Informe um nome e um e-mail válido.")
-        elif perfil not in ("profissional", "administrador") or status not in ("pendente", "aprovado", "rejeitado"):
+        elif not perfil_valido(perfil) or status not in ("pendente", "aprovado", "rejeitado"):
             flash("Perfil ou status inválido.")
         elif password and not PASSWORD_PATTERN.fullmatch(password):
             flash("A senha deve ter no mínimo 6 caracteres, usando apenas letras e números.")
         else:
             try:
                 fields = ["nome = ?", "email = ?", "perfil = ?", "cargo = ?", "status = ?", "ativo = ?"]
-                values = [name, email, perfil, "Administrador" if perfil == "administrador" else "Profissional",
+                values = [name, email, perfil, "Administrador" if perfil == ADMIN_PROFILE else perfil_nome(perfil),
                           status, 1 if status == "aprovado" else 0]
                 if password:
                     fields.append("senha = ?")
@@ -753,8 +774,8 @@ def aprovar_solicitacao(user_id):
     denial = admin_required()
     if denial:
         return denial
-    perfil = request.form.get("perfil", "profissional")
-    if perfil not in ("profissional", "administrador"):
+    perfil = request.form.get("perfil", ADMIN_PROFILE)
+    if not perfil_valido(perfil) or perfil == "profissional":
         flash("Perfil inválido.")
         return redirect(url_for("perfis"))
     connection = db()
@@ -765,7 +786,7 @@ def aprovar_solicitacao(user_id):
     now = datetime.now().isoformat(timespec="seconds")
     connection.execute(
         "UPDATE users SET perfil = ?, cargo = ?, status = 'aprovado', ativo = 1, aprovado_em = ? WHERE id = ?",
-        (perfil, "Administrador" if perfil == "administrador" else "Profissional", now, user_id),
+        (perfil, "Administrador" if perfil == ADMIN_PROFILE else perfil_nome(perfil), now, user_id),
     )
     connection.commit()
     connection.close()

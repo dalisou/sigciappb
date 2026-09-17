@@ -6,7 +6,13 @@
 		<div class="grid">
 			<label>Nome<input name="nome" value="{{ user.nome }}" required></label>
 			<label>E-mail<input name="email" type="email" value="{{ user.email }}" required></label>
-			<label>Perfil<select name="perfil" required><option value="profissional" {% if user.perfil == 'profissional' %}selected{% endif %}>Profissional</option><option value="administrador" {% if user.perfil == 'administrador' %}selected{% endif %}>Administrador</option></select></label>
+			<label>Perfil<select name="perfil" required>
+				<option value="administrador" {% if user.perfil == 'administrador' %}selected{% endif %}>Administrador</option>
+				<option value="profissional_psicologo" {% if user.perfil == 'profissional_psicologo' %}selected{% endif %}>Profissional Psicólogo</option>
+				<option value="profissional_assistente_social" {% if user.perfil == 'profissional_assistente_social' %}selected{% endif %}>Profissional Assistente Social</option>
+				<option value="profissional_advogado" {% if user.perfil == 'profissional_advogado' %}selected{% endif %}>Profissional Advogado</option>
+				<option value="profissional_administrativo" {% if user.perfil == 'profissional_administrativo' %}selected{% endif %}>Profissional Administrativo</option>
+			</select></label>
 			<label>Status<select name="status" required><option value="pendente" {% if user.status == 'pendente' %}selected{% endif %}>Pendente</option><option value="aprovado" {% if user.status == 'aprovado' %}selected{% endif %}>Aprovado</option><option value="rejeitado" {% if user.status == 'rejeitado' %}selected{% endif %}>Rejeitado</option></select></label>
 			<label>Nova senha (opcional)<input name="senha" type="password" minlength="6" pattern="[A-Za-z0-9]{6,}"><small>Deixe em branco para manter a senha atual. Mínimo de 6 caracteres alfanuméricos.</small></label>
 		</div>
