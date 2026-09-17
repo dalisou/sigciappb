@@ -21,7 +21,7 @@ def main():
     source = sqlite3.connect(args.sqlite)
     source.row_factory = sqlite3.Row
     target = app.db()
-    tables = ["users", "pessoas", "atendimentos", "agendamentos", "alertas_agendamento", "disponibilidades", "frequencias", "auditoria"]
+    tables = ["users", "pessoas", "atendimentos", "agendamentos", "alertas_agendamento", "disponibilidades", "frequencias", "auditoria", "mensagens"]
 
     try:
         for table in tables[1:]:

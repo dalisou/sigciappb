@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>{{ title }}</h1>
+<div class="card message-form-card">
+    <p class="muted">Destinatário: <strong>{{ message.destinatario }}</strong></p>
+    <form method="post">
+        <label>Assunto (opcional)<input name="assunto" maxlength="160" value="{{ message.assunto }}"></label>
+        <label>Mensagem<textarea name="mensagem" maxlength="5000" required>{{ message.mensagem }}</textarea></label>
+        <div class="actions"><button>Salvar edição</button><a class="btn alt" href="{{ url_for('dashboard') }}">Cancelar</a></div>
+    </form>
+</div>
+{% endblock %}

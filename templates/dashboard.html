@@ -1,1 +1,32 @@
-{% extends 'base.html' %}{% block content %}<h1>Painel de acompanhamento</h1><div class="grid stats"><div class="card"><h2>{{ total }}</h2>Assistidos em acompanhamento</div><div class="card"><h2>{{ attendances }}</h2>atendimentos</div><div class="card"><h2>{{ groups_count }}</h2>categorias de responsabilização</div></div><section class="card chart-panel"><div class="chart-heading"><div><h2>Distribuição dos assistidos</h2><p class="muted">Escolha uma modalidade para comparar os cadastros.</p></div><label class="chart-select">Modalidade<select id="chart-field">{% for field, label in chart_fields.items() %}<option value="{{ field }}">{{ label }}</option>{% endfor %}<option value="frequencia">Frequência dos encontros</option></select></label></div><div id="dashboard-chart" class="bar-chart" aria-live="polite"></div></section><div class="card"><div class="actions">{% if is_admin %}<a class="btn" href="{{ url_for('nova') }}">+ Novo cadastro</a>{% endif %}<a class="btn alt" href="{{ url_for('exportar') }}">Exportar CSV</a></div><h2>Cadastros recentes</h2><table><tr><th>Nome</th><th>Processo</th><th>Grupo</th><th>Situação do grupo</th></tr>{% for person in people %}<tr><td><a href="{{ url_for('pessoa', pid=person.id) }}">{{ person.nome }}</a></td><td>{{ person.processo }}</td><td>{{ person.grupo_responsabilizacao }}</td><td><span class="pill">{{ person.situacao_grupo or 'Em andamento' }}</span></td></tr>{% endfor %}</table></div><script>window.dashboardCharts = {{ chart_data|safe }};</script>{% endblock %}
+{% extends 'base.html' %}
+{% block content %}
+<h1>Painel de acompanhamento</h1>
+<div class="grid stats">
+    <div class="card"><h2>{{ total }}</h2>Assistidos em acompanhamento</div>
+    <div class="card"><h2>{{ attendances }}</h2>atendimentos</div>
+    <div class="card"><h2>{{ groups_count }}</h2>categorias de responsabilização</div>
+</div>
+<section class="card chart-panel">
+    <div class="chart-heading"><div><h2>Distribuição dos assistidos</h2><p class="muted">Escolha uma modalidade para comparar os cadastros.</p></div><label class="chart-select">Modalidade<select id="chart-field">{% for field, label in chart_fields.items() %}<option value="{{ field }}">{{ label }}</option>{% endfor %}<option value="frequencia">Frequência dos encontros</option></select></label></div>
+    <div id="dashboard-chart" class="bar-chart" aria-live="polite"></div>
+</section>
+<section class="card message-panel">
+    <div class="message-heading"><div><h2>Comunicados Internos</h2><p class="muted">Envie informações privadas para outro funcionário sobre um assistido ou assunto de trabalho.</p></div>{% if unread_messages %}<strong class="message-alert">{{ unread_messages }} nova{% if unread_messages != 1 %}s{% endif %} mensagem{% if unread_messages != 1 %}s{% endif %}</strong>{% endif %}</div>
+    <form method="post" action="{{ url_for('criar_mensagem') }}">
+        <div class="grid message-compose">
+            <label>Destinatário<select name="destinatario_id" required><option value="">Selecione</option>{% for user in message_users %}<option value="{{ user.id }}">{{ user.nome }}{% if user.cargo %} - {{ user.cargo }}{% endif %}</option>{% endfor %}</select></label>
+            <label>Assunto (opcional)<input name="assunto" maxlength="160"></label>
+            <label class="message-body">Mensagem<textarea name="mensagem" maxlength="5000" required placeholder="Escreva a informação para o destinatário"></textarea></label>
+        </div>
+        <button>Enviar mensagem</button>
+    </form>
+    <h3>Minhas mensagens</h3>
+    {% if messages %}<div class="message-list">{% for message in messages %}<article class="message-item{% if message.destinatario_id == session.uid and not message.lida_em %} message-unread{% endif %}">
+        <div class="message-meta"><strong>{% if message.remetente_id == session.uid %}Para: {{ message.destinatario }}{% else %}De: {{ message.remetente }}{% endif %}</strong><span>{{ message.atualizada_em }}{% if message.atualizada_em != message.criada_em %} (editada){% endif %}</span></div>
+        <h4>{{ message.assunto or 'Sem assunto' }}</h4><p>{{ message.mensagem }}</p>
+        <div class="message-actions">{% if message.remetente_id == session.uid %}<a class="btn alt" href="{{ url_for('editar_mensagem', message_id=message.id) }}">Editar</a>{% endif %}{% if message.destinatario_id == session.uid and not message.lida_em %}<form method="post" action="{{ url_for('marcar_mensagem_lida', message_id=message.id) }}"><button class="btn alt" type="submit">Marcar como lida</button></form>{% elif message.destinatario_id == session.uid %}<small class="muted">Lida em {{ message.lida_em }}</small>{% endif %}</div>
+    </article>{% endfor %}</div>{% else %}<p class="muted">Você ainda não tem mensagens.</p>{% endif %}
+</section>
+<div class="card"><div class="actions">{% if is_admin %}<a class="btn" href="{{ url_for('nova') }}">+ Novo cadastro</a>{% endif %}<a class="btn alt" href="{{ url_for('exportar') }}">Exportar CSV</a></div><h2>Cadastros recentes</h2><table><tr><th>Nome</th><th>Processo</th><th>Grupo</th><th>Situação do grupo</th></tr>{% for person in people %}<tr><td><a href="{{ url_for('pessoa', pid=person.id) }}">{{ person.nome }}</a></td><td>{{ person.processo }}</td><td>{{ person.grupo_responsabilizacao }}</td><td><span class="pill">{{ person.situacao_grupo or 'Em andamento' }}</span></td></tr>{% endfor %}</table></div>
+<script>window.dashboardCharts = {{ chart_data|safe }};</script>
+{% endblock %}
