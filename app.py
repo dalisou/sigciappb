@@ -72,6 +72,19 @@ app.config.update(
     SESSION_COOKIE_SECURE=os.environ.get("CIAP_HTTPS", "0") == "1",
 )
 
+
+@app.route("/logos/<filename>")
+def logo(filename):
+    logo_files = {
+        "logociap.jpg": "logociap.jpg",
+        "logoseap-ciap.jpg": "logoseap-ciap.jpg",
+        "logociapRodape.jpg": "logociapRodape.jpg",
+    }
+    selected_file = logo_files.get(filename)
+    if not selected_file:
+        return "Não encontrado", 404
+    return send_file(BASE / selected_file, mimetype="image/jpeg")
+
 # 5. Inicialização do SQLAlchemy com o app já configurado
 db = SQLAlchemy(app)
 
