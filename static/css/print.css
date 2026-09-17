@@ -1,9 +1,9 @@
 .print-branding{display:none}
 
 @media print{
-  @page{margin:10mm 14mm 18mm}
-  body{padding:34mm 0 16mm;background:#fff}
-  body.print-page{margin:0;padding:34mm 0 16mm}
+  @page{margin:35mm 14mm 20mm}
+  body{padding:0;background:#fff}
+  body.print-page{margin:0;padding:0}
   .print-branding{display:block}
   .print-header{position:fixed;top:8mm;left:0;right:0;height:25mm}
   .print-logo-center{position:absolute;top:0;left:50%;width:88mm;height:auto;transform:translateX(-50%)}
