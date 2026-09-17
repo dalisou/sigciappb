@@ -1509,7 +1509,9 @@ def grupos():
         "ORDER BY grupo_id, encontro"
     ).fetchall()
     facilitators = connection.execute(
-        "SELECT nome, cargo FROM users WHERE ativo = 1 AND status = 'aprovado' ORDER BY nome"
+        "SELECT nome, cargo FROM users "
+        "WHERE COALESCE(ativo, 1) = 1 AND TRIM(COALESCE(nome, '')) <> '' "
+        "ORDER BY nome"
     ).fetchall()
     connection.close()
     participants_by_group = {}
