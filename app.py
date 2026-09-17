@@ -1556,6 +1556,48 @@ def formar_grupo():
     return redirect(url_for("grupos"))
 
 
+@app.route("/grupos/<int:group_id>/editar", methods=["POST"])
+def editar_grupo(group_id):
+    denial = admin_required()
+    if denial:
+        return denial
+    new_name = request.form.get("nome", "").strip()
+    if not new_name:
+        flash("Informe um nome para o grupo.")
+        return redirect(url_for("grupos"))
+    connection = db()
+    group = connection.execute("SELECT id, nome FROM grupos_reflexivos WHERE id = ?", (group_id,)).fetchone()
+    if not group:
+        connection.close()
+        return "Grupo não encontrado", 404
+    connection.execute("UPDATE grupos_reflexivos SET nome = ? WHERE id = ?", (new_name, group_id))
+    connection.commit()
+    connection.close()
+    audit(f"Grupo reflexivo atualizado: {new_name}", "grupo_reflexivo", group_id)
+    flash("Grupo atualizado com sucesso.")
+    return redirect(url_for("grupos"))
+
+
+@app.route("/grupos/<int:group_id>/excluir", methods=["POST"])
+def excluir_grupo(group_id):
+    denial = admin_required()
+    if denial:
+        return denial
+    connection = db()
+    group = connection.execute("SELECT id, nome FROM grupos_reflexivos WHERE id = ?", (group_id,)).fetchone()
+    if not group:
+        connection.close()
+        return "Grupo não encontrado", 404
+    connection.execute("DELETE FROM grupo_frequencias WHERE grupo_id = ?", (group_id,))
+    connection.execute("DELETE FROM grupo_participantes WHERE grupo_id = ?", (group_id,))
+    connection.execute("DELETE FROM grupos_reflexivos WHERE id = ?", (group_id,))
+    connection.commit()
+    connection.close()
+    audit(f"Grupo reflexivo excluído: {group['nome']}", "grupo_reflexivo", group_id)
+    flash("Grupo excluído com sucesso.")
+    return redirect(url_for("grupos"))
+
+
 @app.route("/grupos/<int:group_id>/frequencia", methods=["POST"])
 def salvar_frequencia_grupo(group_id):
     denial = admin_required()
