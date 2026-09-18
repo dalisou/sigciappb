@@ -1,0 +1,32 @@
+<main class="appointment-receipt attendance-declaration">
+	<header class="receipt-header">
+		<div class="receipt-institution">CIAP</div>
+		<h1>Declaração de Comparecimento</h1>
+	</header>
+
+	<p class="receipt-intro">Declaramos, para os devidos fins, que o(a) assistido(a) abaixo identificado(a) compareceu à CIAP.</p>
+	<section class="receipt-section">
+		<h2>Identificação do assistido</h2>
+		<div class="print-row"><span class="label">Nome</span><span>{{ person.nome or 'Não informado' }}</span></div>
+		<div class="print-row"><span class="label">CPF</span><span>{{ person.cpf or 'Não informado' }}</span></div>
+		<div class="print-row"><span class="label">Número do processo</span><span>{{ person.processo or 'Não informado' }}</span></div>
+	</section>
+	<section class="receipt-section">
+		<h2>Dados do comparecimento</h2>
+		<div class="declaration-field"><label for="declaration-date">Data</label><input id="declaration-date" type="date"></div>
+		<div class="declaration-field"><label for="arrival-time">Horário de chegada</label><input id="arrival-time" type="time"></div>
+		<div class="declaration-field"><label for="departure-time">Horário de saída</label><input id="departure-time" type="time"></div>
+	</section>
+	<p>Por ser expressão da verdade, firmamos a presente declaração.</p>
+	<div class="signature-row">
+		<div class="signature-box"><span>Assinatura do Assistido(a)</span></div>
+		<div class="signature-box"><span>Assinatura do Servidor(a)</span><div class="signature-details"><div><span>Cargo:</span> ____________________________</div><div><span>Matrícula:</span> __________________</div></div></div>
+	</div>
+</main>
+<script>
+	const declarationDate = document.getElementById('declaration-date');
+	if (declarationDate) {
+		const today = new Date();
+		declarationDate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+	}
+</script>

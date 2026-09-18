@@ -1599,6 +1599,19 @@ def comprovante_agendamento(appointment_id):
     )
 
 
+@app.route("/pessoa/<int:pid>/declaracao-comparecimento")
+def declaracao_comparecimento(pid):
+    if not authenticated():
+        return redirect(url_for("login"))
+    person = get_person(pid)
+    if not person:
+        return "Não encontrado", 404
+    return printable(
+        "Declaração de Comparecimento",
+        render_template("declaracao_comparecimento.html", person=person),
+    )
+
+
 @app.route("/grupos")
 def grupos():
     if not authenticated():
