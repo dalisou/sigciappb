@@ -7,7 +7,7 @@
 	<p class="muted">Cadastre os dias e horários em que cada profissional pode atender.</p>
 	{% if is_admin %}<form method="post" action="{{ url_for('nova_disponibilidade') }}">
 		<div class="grid">
-			<label>Profissional<select name="profissional" required><option value="">Selecione</option>{% for professional in professional_options %}<option value="{{ professional }}">{{ professional }}</option>{% endfor %}</select></label>
+			<label>Profissional<select name="profissional" required><option value="">Selecione</option>{% for professional_key, professional_label in professional_options %}<option value="{{ professional_key }}">{{ professional_label }}</option>{% endfor %}</select></label>
 			<label>Data<input type="date" name="dia_mes" required></label>
 			<label>Início<input type="time" name="hora_inicio" required></label>
 			<label>Fim<input type="time" name="hora_fim" required></label>
@@ -28,7 +28,7 @@
 				</select>
 			</label>
 			<label>Profissional
-				<select name="profissional" id="appointment-professional" required><option value="">Selecione</option>{% for professional in professional_options %}<option value="{{ professional }}">{{ professional }}</option>{% endfor %}</select>
+				<select name="profissional" id="appointment-professional" required><option value="">Selecione</option>{% for professional_key, professional_label in professional_options %}<option value="{{ professional_key }}">{{ professional_label }}</option>{% endfor %}</select>
 			</label>
 			<label>Data do retorno
 				<select name="data" id="appointment-date" required disabled>
@@ -47,7 +47,7 @@
 	<form method="post" action="{{ url_for('criar_alerta_agendamento') }}">
 		<div class="grid">
 			<label>Assistido(a)<select name="pessoa_id" required><option value="">Selecione</option>{% for person in people %}<option value="{{ person.id }}" {% if selected_person|string == person.id|string %}selected{% endif %}>{{ person.nome }}{% if person.processo %} | Processo {{ person.processo }}{% endif %}</option>{% endfor %}</select></label>
-			<label>Profissional<select name="profissional" required><option value="">Selecione</option>{% for professional in professional_options %}<option value="{{ professional }}">{{ professional }}</option>{% endfor %}</select></label>
+			<label>Profissional<select name="profissional" required><option value="">Selecione</option>{% for professional_key, professional_label in professional_options %}<option value="{{ professional_key }}">{{ professional_label }}</option>{% endfor %}</select></label>
 			<label>Data preferencial (opcional)<input type="date" name="data_preferencial"></label>
 			<label>Hora preferencial (opcional)<input type="time" name="hora_preferencial"></label>
 			<label>Observação<textarea name="observacao" placeholder="Motivo ou orientação para quando surgir vaga"></textarea></label>

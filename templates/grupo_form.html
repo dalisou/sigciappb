@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>{{ title }}</h1>
+<div class="card">
+	<form method="post">
+		<div class="grid">
+			<label>Nome do grupo<input name="nome" value="{{ group.nome }}" required></label>
+		</div>
+		<div class="actions"><button>Salvar alterações</button><a class="btn alt" href="{{ url_for('grupos') }}">Cancelar</a></div>
+	</form>
+</div>
+{% endblock %}
