@@ -2,8 +2,10 @@
 
 @media print{
   @page{margin:10mm 14mm 18mm}
+  @page group-frequency{margin:10mm 14mm 30mm}
   body{padding:34mm 0 16mm;background:#fff}
   body.print-page{margin:0;padding:34mm 0 16mm}
+  body.group-frequency-print-page{page:group-frequency}
   .print-branding{display:block}
   .print-header{position:fixed;top:8mm;left:0;right:0;height:25mm}
   .print-logo-center{position:absolute;top:0;left:50%;width:88mm;height:auto;transform:translateX(-50%)}
@@ -13,7 +15,7 @@
   .topbar,.site-footer,.print-button,.actions,.report-filters{display:none!important}
   .wrap{max-width:none;margin:0;padding:0}
   .card{box-shadow:none}
-  body.group-frequency-print-page{padding-bottom:28mm}
+  body.group-frequency-print-page{padding-bottom:0}
   body.group-frequency-print-page .frequency-print-table{page-break-inside:auto;break-inside:auto}
   body.group-frequency-print-page .frequency-print-table thead{display:table-header-group}
   body.group-frequency-print-page .frequency-print-table tr{page-break-inside:avoid;break-inside:avoid}
