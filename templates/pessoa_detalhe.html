@@ -40,7 +40,7 @@
 	{% for item in appointments %}<tr class="{% if item.status == 'Faltou' %}appointment-missed{% endif %}"><td>{{ item.data }}</td><td>{{ item.hora }}</td><td>{{ item.profissional }}</td><td>{{ item.status or 'Agendado' }}</td><td>{{ item.observacao or '—' }}{% if item.observacao_falta %}<br><strong>Relato da falta:</strong> {{ item.observacao_falta }}{% endif %}</td><td><div class="status-actions"><form method="post" action="{{ url_for('atualizar_status_agendamento', appointment_id=item.id) }}"><input type="hidden" name="status" value="Compareceu"><button class="btn" type="submit">Compareceu</button></form><form method="post" action="{{ url_for('atualizar_status_agendamento', appointment_id=item.id) }}"><input type="hidden" name="status" value="Faltou"><label class="absence-note">Observação da falta<textarea name="observacao_falta" rows="2" placeholder="Motivo ou justificativa da falta"></textarea></label><button class="btn warning" type="submit">Faltou</button></form></div></td></tr>{% endfor %}</table>
 	{% else %}<p class="muted">Nenhum retorno agendado.</p>{% endif %}
 </div>
-<div class="card"><h2>Documentos anexados</h2><pre>{{ person.documentos or 'Nenhum documento anexado.' }}</pre></div>
+<div class="card"><h2>Documentos anexados</h2>{% if documents %}<ul class="document-list">{% for document in documents %}<li><a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.label }}: {{ document.filename }}</a></li>{% endfor %}</ul>{% else %}<p class="muted">Nenhum documento anexado.</p>{% endif %}</div>
 <div class="card">
 	<h2>Atendimentos</h2>
 	<table><tr><th>Data</th><th>Tipo</th><th>Profissional</th><th>Conclusão</th><th></th></tr>

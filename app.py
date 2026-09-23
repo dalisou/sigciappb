@@ -608,6 +608,42 @@ def save_document(uploaded, filename):
         uploaded.save(UPLOADS / filename)
 
 
+def document_entries(documentos):
+    entries = []
+    for line in (documentos or "").splitlines():
+        label, separator, filenames = line.partition(": ")
+        if not separator:
+            continue
+        for filename in filenames.split(", "):
+            filename = filename.strip()
+            if filename:
+                entries.append({"label": label.strip(), "filename": filename})
+    return entries
+
+
+def remove_document_reference(documentos, filename):
+    lines = []
+    for line in (documentos or "").splitlines():
+        label, separator, filenames = line.partition(": ")
+        if not separator:
+            lines.append(line)
+            continue
+        remaining = [item for item in filenames.split(", ") if item.strip() != filename]
+        if remaining:
+            lines.append(f"{label}: {', '.join(remaining)}")
+    return "\n".join(lines) + ("\n" if lines else "")
+
+
+def delete_document(filename):
+    if using_object_storage():
+        object_storage().delete_object(Bucket=os.environ["CIAP_S3_BUCKET"], Key=f"documentos/{filename}")
+        return
+    requested = (UPLOADS / filename).resolve()
+    if UPLOADS not in requested.parents or not requested.is_file():
+        raise FileNotFoundError(filename)
+    requested.unlink()
+
+
 @app.before_request
 def protect_state_changes():
     if request.method == "POST":
@@ -1140,7 +1176,10 @@ def editar_pessoa(pid):
         if duplicate:
             connection.close()
             flash(f"Cadastro duplicado: o identificador {duplicate} já pertence a outro assistido.")
-            return render_template("pessoa_form.html", title="Editar cadastro", person=person)
+            return render_template(
+                "pessoa_form.html", title="Editar cadastro", person=person,
+                documents=document_entries(person["documentos"]),
+            )
         connection.execute(
             "UPDATE pessoas SET %s WHERE id = ?" % ", ".join(f"{field} = ?" for field in FIELDS),
             (*values, pid),
@@ -1163,7 +1202,40 @@ def editar_pessoa(pid):
         flash("Cadastro atualizado com sucesso.")
         return redirect(url_for("pessoa", pid=pid))
     connection.close()
-    return render_template("pessoa_form.html", title="Editar cadastro", person=person)
+    return render_template(
+        "pessoa_form.html", title="Editar cadastro", person=person,
+        documents=document_entries(person["documentos"]),
+    )
+
+
+@app.route("/pessoa/<int:pid>/documento/excluir", methods=["POST"])
+def excluir_documento(pid):
+    denial = admin_required()
+    if denial:
+        return denial
+    filename = request.form.get("filename", "").strip()
+    connection = db()
+    person = connection.execute("SELECT documentos FROM pessoas WHERE id = ?", (pid,)).fetchone()
+    if not person:
+        connection.close()
+        return "Não encontrado", 404
+    if filename not in {item["filename"] for item in document_entries(person["documentos"])}:
+        connection.close()
+        return "Documento não encontrado", 404
+    try:
+        delete_document(filename)
+    except (FileNotFoundError, OSError):
+        connection.close()
+        return "Documento não encontrado", 404
+    connection.execute(
+        "UPDATE pessoas SET documentos = ? WHERE id = ?",
+        (remove_document_reference(person["documentos"], filename), pid),
+    )
+    connection.commit()
+    connection.close()
+    audit("Documento excluído", "pessoa", pid)
+    flash("Documento excluído com sucesso.")
+    return redirect(url_for("editar_pessoa", pid=pid))
 
 
 @app.route("/pessoa/<int:pid>/frequencia", methods=["GET", "POST"])
@@ -1241,7 +1313,7 @@ def pessoa(pid):
     return render_template(
         "pessoa_detalhe.html", person=person, attendances=attendances, frequencies=frequencies,
         appointments=appointments, missed_appointments=missed_appointments,
-        scheduling_alerts=scheduling_alerts,
+        scheduling_alerts=scheduling_alerts, documents=document_entries(person["documentos"]),
     )
 
 

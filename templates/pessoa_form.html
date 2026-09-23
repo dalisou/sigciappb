@@ -15,8 +15,18 @@
 	</div>
 	<div class="card">
 		<h2>Documentos para envio</h2>
-		{% if person and person.documentos %}
-		<p class="muted">Documentos já anexados permanecem salvos. Arquivos selecionados abaixo serão acrescentados.</p>
+		{% if documents %}
+		<p class="muted">Documentos já anexados. Arquivos selecionados abaixo serão acrescentados.</p>
+		<ul class="document-list">
+			{% for document in documents %}
+			<li><a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.label }}: {{ document.filename }}</a>
+				<form method="post" action="{{ url_for('excluir_documento', pid=person.id) }}" onsubmit="return confirm('Deseja realmente excluir este arquivo?');">
+					<input type="hidden" name="filename" value="{{ document.filename }}">
+					<button class="icon-button danger" type="submit" aria-label="Excluir arquivo" title="Excluir arquivo">&#128465;</button>
+				</form>
+			</li>
+			{% endfor %}
+		</ul>
 		{% endif %}
 		<div class="grid">
 			{% for document in docs %}
