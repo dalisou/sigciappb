@@ -1570,8 +1570,8 @@ def editar_atendimento(aid):
     )
 
 
-def printable(title, body):
-    return render_template("printable.html", title=title, body=body)
+def printable(title, body, print_class=""):
+    return render_template("printable.html", title=title, body=body, print_class=print_class)
 
 
 def get_person(person_id):
@@ -1893,6 +1893,7 @@ def imprimir_frequencia_grupo(group_id):
             "frequencia_grupo.html", group=group, participants=participants,
             encounter=encounter, meeting=meeting,
         ),
+        print_class="group-frequency-print-page",
     )
 
 

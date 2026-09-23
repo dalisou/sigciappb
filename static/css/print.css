@@ -13,4 +13,8 @@
   .topbar,.site-footer,.print-button,.actions,.report-filters{display:none!important}
   .wrap{max-width:none;margin:0;padding:0}
   .card{box-shadow:none}
+  body.group-frequency-print-page{padding-bottom:28mm}
+  body.group-frequency-print-page .frequency-print-table{page-break-inside:auto;break-inside:auto}
+  body.group-frequency-print-page .frequency-print-table thead{display:table-header-group}
+  body.group-frequency-print-page .frequency-print-table tr{page-break-inside:avoid;break-inside:avoid}
 }
