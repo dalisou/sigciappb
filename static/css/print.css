@@ -1,21 +1,18 @@
-.print-branding{display:none}
+.print-branding,.print-footer{display:none}
 
 @media print{
-  @page{margin:5mm 14mm 12mm}
-  @page group-frequency{margin:5mm 14mm 12mm}
-  body{padding:32mm 0 10mm;background:#fff}
-  body.print-page{margin:0;padding:32mm 0 10mm}
-  body.group-frequency-print-page{page:group-frequency}
+  @page{margin:12mm 14mm}
+  body{padding:0;background:#fff}
+  body.print-page{margin:0;padding:0}
   .print-branding{display:block}
-  .print-header{position:fixed;top:0;left:0;right:0;height:31mm}
+  .print-header{position:relative;height:32mm;margin-bottom:8mm;page-break-after:avoid}
   .print-logo-center{position:absolute;top:0;left:50%;width:88mm;height:auto;transform:translateX(-50%)}
   .print-logo-right{position:absolute;top:1mm;right:0;width:35mm;height:auto}
-  .print-footer{position:fixed;left:0;bottom:0;width:58mm;height:auto}
+  .print-footer{display:block;width:58mm;margin-top:12mm;page-break-inside:avoid}
   .print-footer img{display:block;width:58mm;height:auto}
   .topbar,.site-footer,.print-button,.actions,.report-filters{display:none!important}
   .wrap{max-width:none;margin:0;padding:0}
   .card{box-shadow:none}
-  body.group-frequency-print-page{padding-bottom:10mm}
   body.group-frequency-print-page .frequency-print-table{page-break-inside:auto;break-inside:auto}
   body.group-frequency-print-page .frequency-print-table thead{display:table-header-group}
   body.group-frequency-print-page .frequency-print-table tr{page-break-inside:avoid;break-inside:avoid}
