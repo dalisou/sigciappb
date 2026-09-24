@@ -1,14 +1,14 @@
 .print-branding,.print-footer{display:none}
 
 @media print{
-  @page{margin:12mm 14mm 25mm}
-  body{padding:0;background:#fff}
-  body.print-page{margin:0;padding:0}
+  @page{margin:12mm 14mm 16mm}
+  body{padding:0 0 16mm;background:#fff}
+  body.print-page{margin:0;padding:0 0 16mm}
   .print-branding{display:block}
   .print-header{position:relative;height:32mm;margin-bottom:8mm;page-break-after:avoid}
   .print-logo-center{position:absolute;top:0;left:50%;width:88mm;height:auto;transform:translateX(-50%)}
   .print-logo-right{position:absolute;top:1mm;right:0;width:35mm;height:auto}
-  .print-footer{display:block;position:fixed;left:0;bottom:0;width:58mm;height:auto;margin:0}
+  .print-footer{display:block;position:fixed;left:0;bottom:-10mm;width:58mm;height:auto;margin:0}
   .print-footer img{display:block;width:58mm;height:auto}
   .topbar,.site-footer,.print-button,.actions,.report-filters{display:none!important}
   .wrap{max-width:none;margin:0;padding:0}
