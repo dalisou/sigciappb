@@ -44,6 +44,11 @@
 			</div>
 		</form>
 	</div>{% endif %}
+	<div class="group-frequency-summary" hidden>
+		<h3>Frequência dos participantes</h3>
+		<div class="table-scroll"><table><tr><th>Assistido</th>{% for encounter in range(1, 11) %}<th>{{ encounter }}º</th>{% endfor %}</tr>
+		{% for person in group.participants %}<tr><td><a href="{{ url_for('pessoa', pid=person.pessoa_id) }}">{{ person.nome }}</a></td>{% for encounter in range(1, 11) %}{% set frequency = person.frequencies.get(encounter) %}<td>{{ frequency.status if frequency and frequency.status else 'Não registrado' }}</td>{% endfor %}</tr>{% endfor %}</table></div>
+	</div>
 	{% if is_admin %}<form method="post" action="{{ url_for('salvar_frequencia_grupo', group_id=group.id) }}" class="group-attendance-form" data-history-url="{{ url_for('historico_frequencia_grupo', group_id=group.id) }}" data-frequencies='{{ group.frequency_data|tojson }}'>
 		<div class="grid attendance-toolbar"><label>Encontro<select name="encontro" class="encounter-select">{% for number in range(1, 11) %}<option value="{{ number }}" {% if number == (group.last_encounter or 1) %}selected{% endif %}>{{ number }}º encontro</option>{% endfor %}</select></label><label>Data<input type="date" name="data" class="encounter-date"></label><label>Horário<input type="time" name="horario" class="encounter-time"></label></div>
 		<label>Facilitadores do encontro
@@ -57,11 +62,6 @@
 	{% endif %}
 	<table><tr><th>Nome</th><th>Processo</th><th>Grupo de responsabilização</th>{% if is_admin %}<th>Frequência</th>{% endif %}</tr>
 	{% for person in group.participants %}<tr><td><a href="{{ url_for('pessoa', pid=person.pessoa_id) }}">{{ person.nome }}</a></td><td>{{ person.processo or '—' }}</td><td>{{ person.grupo_responsabilizacao or '—' }}</td>{% if is_admin %}<td><select name="frequencia_status_{{ person.pessoa_id }}" class="participant-status" data-person-id="{{ person.pessoa_id }}">{% set current = person.frequencies.get(group.last_encounter or 1) %}{% for option in frequency_status_options %}<option value="{{ option }}" {% if current and current.status == option %}selected{% endif %}>{{ option or 'Não registrado' }}</option>{% endfor %}</select></td>{% endif %}</tr>{% endfor %}</table>
-	<div class="group-frequency-summary" hidden>
-		<h3>Frequência dos participantes</h3>
-		<div class="table-scroll"><table><tr><th>Assistido</th>{% for encounter in range(1, 11) %}<th>{{ encounter }}º</th>{% endfor %}</tr>
-		{% for person in group.participants %}<tr><td><a href="{{ url_for('pessoa', pid=person.pessoa_id) }}">{{ person.nome }}</a></td>{% for encounter in range(1, 11) %}{% set frequency = person.frequencies.get(encounter) %}<td>{{ frequency.status if frequency and frequency.status else 'Não registrado' }}</td>{% endfor %}</tr>{% endfor %}</table></div>
-	</div>
 	{% if is_admin %}<div class="actions"><button type="submit">Salvar frequência do encontro</button><a class="btn alt print-frequency-link" href="{{ url_for('imprimir_frequencia_grupo', group_id=group.id, encontro=group.last_encounter or 1) }}" target="_blank">Imprimir lista de presença</a></div></form>{% endif %}
 </div>
 {% else %}<div class="card"><p class="muted">Nenhum grupo reflexivo formado.</p></div>{% endfor %}
