@@ -10,10 +10,11 @@
 	<form method="post" action="{{ url_for('formar_grupo') }}" id="new-group-form">
 		<div class="grid">
 			<label>Nome do grupo (opcional)<input name="nome" placeholder="Ex.: Grupo reflexivo - setembro"></label>
+			<label>Tipo de grupo / tema<select id="group-type-filter"><option value="">Todos os tipos</option>{% for group_type in available_people|map(attribute='grupo_responsabilizacao')|unique|sort %}<option value="{{ group_type }}">{{ group_type }}</option>{% endfor %}</select></label>
 		</div>
 		<p class="muted"><span id="selected-count">0</span>/20 assistidos selecionados.</p>
 		<div class="selection-list">
-		{% for person in available_people %}<label class="selection-item"><input type="checkbox" name="pessoa_id" value="{{ person.id }}"><span><strong>{{ person.nome }}</strong><small>{{ person.processo or 'Sem processo' }}{% if person.grupo_responsabilizacao %} · {{ person.grupo_responsabilizacao }}{% endif %}</small></span></label>{% endfor %}
+		{% for person in available_people %}<label class="selection-item" data-group-type="{{ person.grupo_responsabilizacao }}"><input type="checkbox" name="pessoa_id" value="{{ person.id }}"><span><strong>{{ person.nome }}</strong><small>{{ person.processo or 'Sem processo' }}{% if person.grupo_responsabilizacao %} · {{ person.grupo_responsabilizacao }}{% endif %}</small></span></label>{% endfor %}
 		</div>
 		<div class="actions"><button type="submit">Formar grupo</button></div>
 	</form>
@@ -68,12 +69,20 @@
 <script>
 	const checkboxes = [...document.querySelectorAll('#new-group-form input[type="checkbox"]')];
 	const counter = document.getElementById('selected-count');
+	const groupTypeFilter = document.getElementById('group-type-filter');
+	const selectionItems = [...document.querySelectorAll('#new-group-form .selection-item')];
+	function applyGroupTypeFilter() {
+		const selectedType = groupTypeFilter?.value || '';
+		selectionItems.forEach((item) => { item.hidden = Boolean(selectedType && item.dataset.groupType !== selectedType); });
+	}
 	function updateSelection() {
 		const total = checkboxes.filter((item) => item.checked).length;
-		counter.textContent = total;
+		if (counter) counter.textContent = total;
 		checkboxes.forEach((item) => { item.disabled = total >= 20 && !item.checked; });
+		applyGroupTypeFilter();
 	}
 	checkboxes.forEach((item) => item.addEventListener('change', updateSelection));
+	groupTypeFilter?.addEventListener('change', updateSelection);
 	updateSelection();
 	document.querySelectorAll('.group-edit-toggle').forEach((button) => {
 		const card = button.closest('.card');
