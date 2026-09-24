@@ -1,7 +1,2 @@
-<header class="print-header" aria-label="Identificação institucional">
-  <img class="print-logo-center" src="{{ url_for('logo', filename='logoseap-ciap.jpg') }}" alt="Estado da Paraíba, Governo do Estado, Secretaria de Estado da Administração Penitenciária e Central Integrada de Alternativas Penais">
-  <img class="print-logo-right" src="{{ url_for('logo', filename='logociap.jpg') }}" alt="Central Integrada de Alternativas Penais">
-</header>
-<footer class="print-footer">
-  <img src="{{ url_for('logo', filename='logociapRodape.jpg') }}" alt="Endereço e contatos da CIAP">
-</footer>
+{% include 'print_header.html' %}
+{% include 'print_footer.html' %}
