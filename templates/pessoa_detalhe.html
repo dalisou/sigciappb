@@ -40,7 +40,24 @@
 	{% for item in appointments %}<tr class="{% if item.status == 'Faltou' %}appointment-missed{% endif %}"><td>{{ item.data }}</td><td>{{ item.hora }}</td><td>{{ item.profissional }}</td><td>{{ item.status or 'Agendado' }}</td><td>{{ item.observacao or '—' }}{% if item.observacao_falta %}<br><strong>Relato da falta:</strong> {{ item.observacao_falta }}{% endif %}</td><td><div class="status-actions"><form method="post" action="{{ url_for('atualizar_status_agendamento', appointment_id=item.id) }}"><input type="hidden" name="status" value="Compareceu"><button class="btn" type="submit">Compareceu</button></form><form method="post" action="{{ url_for('atualizar_status_agendamento', appointment_id=item.id) }}"><input type="hidden" name="status" value="Faltou"><label class="absence-note">Observação da falta<textarea name="observacao_falta" rows="2" placeholder="Motivo ou justificativa da falta"></textarea></label><button class="btn warning" type="submit">Faltou</button></form></div></td></tr>{% endfor %}</table>
 	{% else %}<p class="muted">Nenhum retorno agendado.</p>{% endif %}
 </div>
-<div class="card"><h2>Documentos anexados</h2>{% if documents %}<ul class="document-list">{% for document in documents %}<li><a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.label }}: {{ document.filename }}</a></li>{% endfor %}</ul>{% else %}<p class="muted">Nenhum documento anexado.</p>{% endif %}</div>
+<div class="card document-attachments-card">
+	<h2>Documentos anexados</h2>
+	<div class="document-attachment-groups">
+		{% for document_label in docs %}
+		{% set matching_documents = documents|selectattr('label', 'equalto', document_label)|list %}
+		<section class="document-attachment-group">
+			<h3>{{ loop.index }}. {{ document_label }}</h3>
+			{% if matching_documents %}
+			<ul class="document-attachment-files">
+				{% for document in matching_documents %}
+				<li><a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.filename }}</a></li>
+				{% endfor %}
+			</ul>
+			{% else %}<span class="muted">Nenhum arquivo anexado</span>{% endif %}
+		</section>
+		{% endfor %}
+	</div>
+</div>
 <div class="card">
 	<h2>Atendimentos</h2>
 	<table><tr><th>Data</th><th>Tipo</th><th>Profissional</th><th>Conclusão</th><th></th></tr>
