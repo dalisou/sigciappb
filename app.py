@@ -339,6 +339,21 @@ def table_columns(connection, table_name):
     return {row[1] for row in connection.execute(f"PRAGMA table_info({table_name})")}
 
 
+def safe_schema_execute(connection, statement):
+    savepoint = "ciap_schema_migration"
+    try:
+        connection.execute(f"SAVEPOINT {savepoint}")
+        connection.execute(statement)
+        connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+    except Exception:
+        try:
+            connection.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+            connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+        except Exception:
+            connection.rollback()
+        app.logger.warning("Migração de schema ignorada: %s", statement, exc_info=True)
+
+
 def init_postgres_db():
     connection = db()
     field_sql = ", ".join(f'"{field}" TEXT' for field in FIELDS)
@@ -403,18 +418,31 @@ def init_postgres_db():
     ]
     for statement in statements:
         connection.execute(statement)
+    safe_schema_execute(
+        connection,
+        "ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS alerta_frequencia TEXT DEFAULT ''",
+    )
     person_columns = table_columns(connection, "pessoas")
     for field in (
         "prestacao_servico_comunitario", "local_prestacao_servico",
         "grupo_reflexivo", "tipo_grupo_reflexivo",
     ):
         if field not in person_columns:
-            connection.execute(f'ALTER TABLE pessoas ADD COLUMN "{field}" TEXT DEFAULT \'\'')
+            safe_schema_execute(
+                connection,
+                f'ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS "{field}" TEXT DEFAULT \'\'',
+            )
     group_frequency_columns = table_columns(connection, "grupo_frequencias")
     if "horario" not in group_frequency_columns:
-        connection.execute("ALTER TABLE grupo_frequencias ADD COLUMN horario TEXT DEFAULT ''")
+        safe_schema_execute(
+            connection,
+            "ALTER TABLE grupo_frequencias ADD COLUMN IF NOT EXISTS horario TEXT DEFAULT ''",
+        )
     if "facilitadores" not in group_frequency_columns:
-        connection.execute("ALTER TABLE grupo_frequencias ADD COLUMN facilitadores TEXT DEFAULT ''")
+        safe_schema_execute(
+            connection,
+            "ALTER TABLE grupo_frequencias ADD COLUMN IF NOT EXISTS facilitadores TEXT DEFAULT ''",
+        )
     connection.execute(
         "UPDATE users SET perfil = 'administrador', status = 'aprovado' WHERE cargo = 'Administrador'"
     )
