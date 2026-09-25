@@ -4,38 +4,105 @@
 <p class="muted">Campos baseados na planilha enviada. Documentos devem estar atualizados e completos.</p>
 <form method="post" enctype="multipart/form-data">
 	<div class="card">
-		<h2>Dados do cabeçalho da base</h2>
+		<h2>Dados do Assistido</h2>
 		<div class="grid">
 			{% for field in fields %}
+			{% set current_value = person[field] if person else '' %}
+			{% if field == 'artigo' %}
+			{% set selected_articles = current_value.split(' | ') if current_value else [] %}
 			<label>{{ labels[field] }}
-				<input name="{{ field }}" value="{{ person[field] if person else '' }}" {% if field in ['data_nascimento','data_atendimento','termino_medida'] %}type="date"{% endif %}>
+				<select name="artigo" multiple size="6" aria-describedby="artigo-help">
+					{% for option in article_options %}<option value="{{ option }}" {% if option in selected_articles %}selected{% endif %}>{{ option }}</option>{% endfor %}
+				</select>
+				<small id="artigo-help" class="field-help">Selecione um ou mais artigos.</small>
 			</label>
+			{% elif field in select_options %}
+			<label>{{ labels[field] }}
+				<select name="{{ field }}">
+					<option value="">Selecione</option>
+					{% for option in select_options[field] %}<option value="{{ option }}" {% if current_value == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
+				</select>
+			</label>
+			{% elif field == 'prestacao_servico_comunitario' %}
+			<label>{{ labels[field] }}
+				<select name="{{ field }}" id="prestacao-servico">
+					<option value="">Selecione</option><option value="Sim" {% if current_value == 'Sim' %}selected{% endif %}>Sim</option><option value="Não" {% if current_value == 'Não' %}selected{% endif %}>Não</option>
+				</select>
+			</label>
+			{% elif field == 'local_prestacao_servico' %}
+			<label id="local-prestacao-field">{{ labels[field] }}
+				<input name="{{ field }}" value="{{ current_value }}">
+			</label>
+			{% elif field == 'grupo_reflexivo' %}
+			<label>{{ labels[field] }}
+				<select name="{{ field }}" id="grupo-reflexivo">
+					<option value="">Selecione</option><option value="Sim" {% if current_value == 'Sim' %}selected{% endif %}>Sim</option><option value="Não" {% if current_value == 'Não' %}selected{% endif %}>Não</option>
+				</select>
+			</label>
+			{% elif field == 'tipo_grupo_reflexivo' %}
+			<label id="tipo-grupo-reflexivo-field">{{ labels[field] }}
+				<select name="{{ field }}">
+					<option value="">Selecione</option>
+					{% for option in reflective_group_options %}<option value="{{ option }}" {% if current_value == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
+				</select>
+			</label>
+			{% else %}
+			<label>{{ labels[field] }}
+				<input name="{{ field }}" value="{{ current_value }}" {% if field in ['data_nascimento','data_atendimento','termino_medida'] %}type="date"{% endif %}>
+			</label>
+			{% endif %}
 			{% endfor %}
 		</div>
 	</div>
-	<div class="card">
-		<h2>Documentos para envio</h2>
-		{% if documents %}
-		<p class="muted">Documentos já anexados. Arquivos selecionados abaixo serão acrescentados.</p>
-		<ul class="document-list">
-			{% for document in documents %}
-			<li><a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.label }}: {{ document.filename }}</a>
-				<form method="post" action="{{ url_for('excluir_documento', pid=person.id) }}" onsubmit="return confirm('Deseja realmente excluir este arquivo?');">
-					<input type="hidden" name="filename" value="{{ document.filename }}">
-					<button class="icon-button danger" type="submit" aria-label="Excluir arquivo" title="Excluir arquivo">&#128465;</button>
-				</form>
-			</li>
-			{% endfor %}
-		</ul>
-		{% endif %}
-		<div class="grid">
+	<div class="card document-card">
+		<h2>Documentos</h2>
+		<p class="muted">Arquivos selecionados serão acrescentados ao cadastro. Os links ao lado abrem documentos já enviados.</p>
+		<div class="document-upload-list">
 			{% for document in docs %}
-			<label>{{ loop.index }}. {{ document }}
-				<input type="file" name="doc_{{ loop.index0 }}" {% if loop.index == 2 %}multiple{% endif %}>
-			</label>
+			<div class="document-upload-row">
+				<label>{{ loop.index }}. {{ document }}
+					<input type="file" name="doc_{{ loop.index0 }}" {% if loop.index == 2 %}multiple{% endif %}>
+				</label>
+				<div class="document-existing-links">
+					{% for existing in documents|selectattr('label', 'equalto', document)|list %}<a href="{{ url_for('documento', filename=existing.filename) }}" target="_blank" rel="noopener">Visualizar/download: {{ existing.filename }}</a>{% else %}<span class="muted">Nenhum arquivo enviado</span>{% endfor %}
+				</div>
+			</div>
 			{% endfor %}
 		</div>
 	</div>
 	<button>Salvar cadastro</button>
 </form>
+{% if documents and person %}
+<div class="card document-management">
+	<h3>Arquivos enviados</h3>
+	<ul class="document-list">
+		{% for document in documents %}
+		<li><a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.label }}: {{ document.filename }}</a>
+			<form method="post" action="{{ url_for('excluir_documento', pid=person.id) }}" onsubmit="return confirm('Deseja realmente excluir este arquivo?');">
+				<input type="hidden" name="filename" value="{{ document.filename }}">
+				<button class="icon-button danger" type="submit" aria-label="Excluir arquivo" title="Excluir arquivo">&#128465;</button>
+			</form>
+		</li>
+		{% endfor %}
+	</ul>
+</div>
+{% endif %}
+<script>
+	const serviceSelect = document.querySelector('#prestacao-servico');
+	const serviceLocation = document.querySelector('#local-prestacao-field');
+	const serviceLocationInput = serviceLocation?.querySelector('input');
+	const reflectiveSelect = document.querySelector('#grupo-reflexivo');
+	const reflectiveType = document.querySelector('#tipo-grupo-reflexivo-field');
+	const updateDependentFields = () => {
+		const serviceEnabled = serviceSelect?.value === 'Sim';
+		if (serviceLocation) serviceLocation.hidden = !serviceEnabled;
+		if (!serviceEnabled && serviceLocationInput) serviceLocationInput.value = '';
+		const reflectiveEnabled = reflectiveSelect?.value === 'Sim';
+		if (reflectiveType) reflectiveType.hidden = !reflectiveEnabled;
+		if (!reflectiveEnabled && reflectiveType) reflectiveType.querySelector('select').value = '';
+	};
+	serviceSelect?.addEventListener('change', updateDependentFields);
+	reflectiveSelect?.addEventListener('change', updateDependentFields);
+	updateDependentFields();
+</script>
 {% endblock %}

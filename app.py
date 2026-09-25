@@ -211,6 +211,7 @@ DOCS = [
     "Cartão CNPJ (se empresário)",
     "Cartão do SUS",
     "Número do Cadastro Único (se recebe benefícios sociais)",
+    "Outros Documentos",
 ]
 
 FIELDS = [
@@ -219,7 +220,8 @@ FIELDS = [
     "escolaridade", "pcd", "tipo_deficiencia", "nacionalidade", "pais", "ocupacao", "profissao",
     "religiao", "diploma_legal", "artigo", "tipo_penal", "grupamento_penal", "natureza_atendimento",
     "medida", "grupo_responsabilizacao", "status", "atendimento_individual", "comparecimento",
-    "termino_medida", "situacao_final", "observacoes",
+    "termino_medida", "situacao_final", "observacoes", "prestacao_servico_comunitario",
+    "local_prestacao_servico", "grupo_reflexivo", "tipo_grupo_reflexivo",
 ]
 GROUP_STATUS_OPTIONS = ["Em andamento", "Concluiu", "Desistiu", "Eliminado - refazer grupo"]
 FREQUENCY_STATUS_OPTIONS = ["", "Presente", "Faltou"]
@@ -236,8 +238,33 @@ LABELS = dict(zip(FIELDS, [
     "Nacionalidade", "País", "Ocupação", "Profissão", "Religião", "Diploma Legal", "Artigo/Capitulação",
     "Tipo Penal", "Grupamento Penal", "Natureza do Atendimento", "Tipo de Medida/Alternativa",
     "Grupo de Responsabilização", "Status do Atendimento", "Atendimento Individual", "Comparecimento Voluntário",
-    "Data de Término da Medida", "Situação Final", "Observação/Justificativas",
+    "Data de Término da Medida", "Situação Final", "Observação/Justificativas", "Prestação de Serviço Comunitário",
+    "Local da Prestação de Serviço", "Grupo Reflexivo", "Tipo de Grupo Reflexivo",
 ]))
+
+SELECT_OPTIONS = {
+    "raca": ["Preta", "Branca", "Parda", "Amarela", "Indígena", "Não Declarada"],
+    "sexo": ["Feminino", "Masculino"],
+    "identidade_genero": ["Homem Cis", "Mulher Cis", "Mulher Trans/Travesti", "Transgênero", "Pessoa Não Binária", "Outro", "Não Informou"],
+    "orientacao_sexual": ["Heterosexual", "Homosexual", "Bisexual", "Pansexual", "Assexual", "Demissexual"],
+    "escolaridade": ["Ensino Fundamental Incompleto", "Ensino Fundamental", "Ensino Médio Incompleto", "Ensino Médio", "Ensino Superior Incompleto", "Ensino Superior", "Pós Graduado", "MBA", "Mestrado", "Doutorado", "Pós Doutorado", "Não Informado"],
+    "pcd": ["Sim", "Não"],
+    "tipo_deficiencia": ["Não Possui", "Motora", "Visual", "Mental/Intelectual", "Auditiva", "Outra(s) Deficiência(s)"],
+    "nacionalidade": ["Brasileira", "Estrangeira"],
+    "ocupacao": ["Formal", "Informal", "Sem Ocupação"],
+    "religiao": ["Católica", "Evangélica", "Cristã", "Matriz Africana", "Espírita", "Budismo", "Judaísmo", "Islamismo", "Hinduísmo", "Fé Bahá'í", "Espiritualidade Sem Religião", "Sem Religião", "Não declarada"],
+    "diploma_legal": ["Aguardando audiência", "Antiga Lei de Licitações e Contratos (Lei nº 8.666/93)", "Código de Trânsito Brasileiro (Lei 9.503/97)", "Código Penal/ECA", "Contravenções Penais (Dec. Lei 3.688/41) c/c Lei 11.340/06", "Contravenções Penais (Decreto-Lei 3.688/41)", "Crimes Tributários (Lei 8.137/90)", "Decreto-Lei nº 2.848/40 (Código Penal)", "Direção sob influência de álcool", "Estatuto da Criança e do Adolescente (Lei 8.069/90)", "Estatuto do Desarmamento (Lei 10.826/03)", "Lei 11.343/06 (Lei de Drogas)", "Lei 7.716/89 (Lei de Racismo)", "Lei 8.137/90 (Crimes Tributários)", "Lei 9.605/1998 (Lei de Crimes Ambientais)", "Lei Nº 11.340/06 (Maria da Penha)", "Lei nº 11.343/06 (Lei de Drogas)", "Lei nº 8.069/90 (ECA)", "Lei nº 9.503/97 (Código de Trânsito Brasileiro)"],
+    "tipo_penal": ["Abandono material", "Adulteração de Sinal Identificador de Veículo", "Ameaça", "Apropriação Indébita", "Apropriação Indébita Tributária", "Armazenamento, transporte ou guarda de substância tóxica ou perigosa", "Associação para o tráfico", "Condução de veículo sem habilitação", "Corrupção de menores", "Dano Simples", "Descumprimento de Medida Protetiva", "Descumprimento de Medida Protetiva de Urgência", "Difamação", "Dirigir veículo sem habilitação", "Discriminação ou Preconceito de Raça, Cor, Etnia, Religião ou Procedência Nacional", "Divulgação/Transmissão de Cena de Exploração Sexual Infantojuvenil", "Embriaguez ao Volante", "Estelionato", "Falsidade de Atestado Médico", "Falsidade ideológica", "Falsificação de Documento Público", "Fraude em Licitação", "Furto", "Homicídio Culposo no Trânsito", "Importunação Sexual", "Incitação ao crime", "Incêndio", "Injúria", "Injúria Racial", "Lesão corporal", "Lesão Corporal Culposa no Trânsito", "Omissão/fraude de tributo", "Peculato", "Poluição Ambiental", "Porte de arma branca", "Posse/Porte ilegal de arma de fogo", "Receptação", "Roubo Impróprio", "Homicídio Culposo na Direção de Veículo Automotor", "Sonegação", "Sonegação fiscal", "Submeter Menor a Vexame ou Constrangimento", "Tráfico de drogas", "Uso de Documento Falso", "Velocidade Incompatível", "Venda/Exposição de Pornografia Infanto-juvenil", "Violência física/psicológica/sexual/patrimonial/moral", "Violência Sexual"],
+    "grupamento_penal": ["Armas/Estatuto do Desarmamento", "Armas/Estatuto desarmamento", "Crimes contra a Família", "Crimes contra a Honra", "Crimes contra a Paz Pública", "Crimes contra a Pessoa", "Crimes contra Assistência Familiar", "Crimes Contra o Meio Ambiente", "Crimes contra o Patrimônio", "Crimes de Preconceito de Raça ou de Cor", "Crimes de Trânsito", "Dignidade Sexual", "Dos Crimes Contra o Meio Ambiente/Dos Crimes de Poluição", "Dos Crimes e das Penas", "Dos Crimes e das Penas (Licitações)", "Dos Crimes em Espécie (ECA)/Crimes Cibernéticos", "Fé pública", "Incolumidade Pública/Perigo Comum", "Lei de Drogas(ou Narcotráficos)", "Liberdade Individual", "Ordem Tributária", "Proteção da Infância/Crimes Acessórios", "Proteção à Criança e ao Adolescente", "Segurança Pública/Patrimonial", "Violência Doméstica/familiar"],
+    "natureza_atendimento": ["1º Atendimento Técnico Multidisciplinar", "Acolhimento Inicial (comparecimento)", "Agendamento"],
+    "medida": ["Acordo de não Persecução Penal", "Conciliação", "Medida Cautelar diversa da prisão", "Outras modalidades", "Penas restritivas de direito", "SCP", "SURSIS"],
+    "grupo_responsabilizacao": ["Alteridade, Raça e Direitos Humanos", "Combate ao preconceito", "Conscientização sobre Bens Públicos e Privados", "Dignidade Sexual e Alteridade", "Direitos Humanos, Diversidade e Relações Étnico-Raciais", "Direitos Humanos, Proteção à Infância e Cidadania", "Drogas e suas transversalidades", "Gênero e Alteridade: Coexistência Feminina", "Gênero, Vínculos e Alteridade", "Gênero/Sexualidade", "Gênero/Vínculos/Alteridade", "Homens autores de violência doméstica contra mulher", "Meio Ambiente, Sustentabilidade e Ecologia Familiar", "Meio Ambiente, Sustentabilidade e Proteção Comunitária", "Orientação Cívica", "Orientação Cívica ou Temático de Segurança", "Parentalidade e Direitos Humanos", "Parentalidade e Responsabilidade Familiar", "Segurança Comunitária e Paz Pública", "Trânsito/Vida", "Ética/Cidadania"],
+    "status": ["Realizado com Sucesso", "Não Realizado"],
+    "atendimento_individual": ["Assistente Social", "Jurídico", "Psicólogo"],
+    "comparecimento": ["Sim", "Não"],
+}
+ARTICLE_OPTIONS = ["2º-A", "art. 12", "Art. 12, Lei 10.826/03", "Art. 129", "Art. 129 § 9º", "Art. 129, § 13, CP", "Art. 129, § 9º c/c Art. 5º, I e II da Lei 11.340/06", "Art. 129, § 9º, CP c/c Art. 7º e 41 da Lei 11.343/06", "art. 129, §13", "art. 129, §13, CP c/c art. 5º, II, Lei nº 11.340/06", "art. 129, §9º", "Art. 129,§ 9º", "art. 139", "art. 14", "art. 140", "art. 147", "art. 150", "art. 155", "Art. 155, § 4º, II", "Art. 155, § 4º, IV c/c Art. 14, II", "Art. 155, § 4º, IV, CP c/c Art. 244-B", "art. 157", "art. 16", "art. 163", "art. 168", "Art. 168, § 1º, III", "Art. 171", "Art. 171, § 4º c/c Art. 29", "art. 171, §4º", "Art. 180", "art. 19", "art. 1º", "Art. 1º, I", "Art. 1º, I, art. 24-A", "art. 20", "art. 21", "Art. 21, LCP", "Art. 21, LCP c/c Arts. 5º e 7º da Lei 11.340/06", "art. 215", "art. 215-A", "art. 232", "art. 24-A", "art. 241", "art. 244", "art. 250", "art. 286", "art. 297", "art. 299", "art. 2º", "art. 2º-A", "art. 302", "Art. 302, § 1º, III", "art. 303", "art. 304", "art. 306", "art. 309", "art. 311", "art. 311, caput", "art. 312", "Art. 33", "art. 33", "art. 33, c/c art. 40, III", "art. 33, caput, §4º", "art. 33, §4º", "art. 35", "art. 54", "art. 56", "art. 5º", "art. 5º, III", "art. 70", "art. 7º", "art. 90", "art.168", "art.180", "art.311"]
+REFLECTIVE_GROUP_OPTIONS = ["Homens autores de violência doméstica contra mulher", "Drogas e suas transversalidades", "Trânsito/Vida"]
 
 ATTENDANCE_FIELDS = [
     "data", "inicio_fim", "profissional", "tipo_retorno", "compareceu", "busca_ativa", "emprego",
@@ -376,6 +403,13 @@ def init_postgres_db():
     ]
     for statement in statements:
         connection.execute(statement)
+    person_columns = table_columns(connection, "pessoas")
+    for field in (
+        "prestacao_servico_comunitario", "local_prestacao_servico",
+        "grupo_reflexivo", "tipo_grupo_reflexivo",
+    ):
+        if field not in person_columns:
+            connection.execute(f'ALTER TABLE pessoas ADD COLUMN "{field}" TEXT DEFAULT \'\'')
     group_frequency_columns = table_columns(connection, "grupo_frequencias")
     if "horario" not in group_frequency_columns:
         connection.execute("ALTER TABLE grupo_frequencias ADD COLUMN horario TEXT DEFAULT ''")
@@ -475,7 +509,10 @@ def init_db():
         )
     )
     columns = table_columns(connection, "pessoas")
-    for field in ("situacao_grupo", "alerta_frequencia"):
+    for field in (
+        "situacao_grupo", "alerta_frequencia", "prestacao_servico_comunitario",
+        "local_prestacao_servico", "grupo_reflexivo", "tipo_grupo_reflexivo",
+    ):
         if field not in columns:
             connection.execute(f'ALTER TABLE pessoas ADD COLUMN {field} TEXT DEFAULT ""')
     availability_columns = table_columns(connection, "disponibilidades")
@@ -593,6 +630,18 @@ def find_duplicate_person(connection, values, exclude_id=None):
                 return field.upper()
     return None
 
+def person_form_values():
+    values = [request.form.get(field, "") for field in FIELDS]
+    article_values = [value.strip() for value in request.form.getlist("artigo") if value.strip()]
+    values[FIELDS.index("artigo")] = " | ".join(article_values)
+    service_enabled = values[FIELDS.index("prestacao_servico_comunitario")] == "Sim"
+    if not service_enabled:
+        values[FIELDS.index("local_prestacao_servico")] = ""
+    group_enabled = values[FIELDS.index("grupo_reflexivo")] == "Sim"
+    if not group_enabled:
+        values[FIELDS.index("tipo_grupo_reflexivo")] = ""
+    return values
+
 
 def upload_filename(person_id, document_index, original_name):
     safe_name = secure_filename(original_name)
@@ -696,7 +745,9 @@ def login_required():
 @app.context_processor
 def template_context():
     return {
-        "labels": LABELS, "fields": FIELDS, "docs": DOCS,
+        "labels": LABELS, "fields": FIELDS, "docs": DOCS, "documents": [],
+        "select_options": SELECT_OPTIONS, "article_options": ARTICLE_OPTIONS,
+        "reflective_group_options": REFLECTIVE_GROUP_OPTIONS,
         "group_status_options": GROUP_STATUS_OPTIONS,
         "frequency_status_options": FREQUENCY_STATUS_OPTIONS,
         "professional_options": PROFESSIONAL_OPTIONS,
@@ -1129,7 +1180,7 @@ def nova():
         return denial
     if request.method == "POST":
         connection = db()
-        values = [request.form.get(field, "") for field in FIELDS]
+        values = person_form_values()
         duplicate = find_duplicate_person(connection, values)
         if duplicate:
             connection.close()
@@ -1171,7 +1222,7 @@ def editar_pessoa(pid):
         connection.close()
         return "Não encontrado", 404
     if request.method == "POST":
-        values = [request.form.get(field, "") for field in FIELDS]
+        values = person_form_values()
         duplicate = find_duplicate_person(connection, values, exclude_id=pid)
         if duplicate:
             connection.close()
