@@ -7,6 +7,6 @@ Jinja2==3.1.6
 MarkupSafe==3.0.3
 Werkzeug==3.1.8
 openpyxl
-psycopg2-binary
+psycopg2-binary==2.9.10
 Flask-SQLAlchemy
 boto3
