@@ -632,14 +632,21 @@ def find_duplicate_person(connection, values, exclude_id=None):
 
 def person_form_values():
     values = [request.form.get(field, "") for field in FIELDS]
+
+    article_index = FIELDS.index("artigo")
     article_values = [value.strip() for value in request.form.getlist("artigo") if value.strip()]
-    values[FIELDS.index("artigo")] = " | ".join(article_values)
-    service_enabled = values[FIELDS.index("prestacao_servico_comunitario")] == "Sim"
-    if not service_enabled:
-        values[FIELDS.index("local_prestacao_servico")] = ""
-    group_enabled = values[FIELDS.index("grupo_reflexivo")] == "Sim"
-    if not group_enabled:
-        values[FIELDS.index("tipo_grupo_reflexivo")] = ""
+    values[article_index] = " | ".join(article_values)
+
+    service_index = FIELDS.index("prestacao_servico_comunitario")
+    location_index = FIELDS.index("local_prestacao_servico")
+    if values[service_index] != "Sim":
+        values[location_index] = ""
+
+    group_index = FIELDS.index("grupo_reflexivo")
+    group_type_index = FIELDS.index("tipo_grupo_reflexivo")
+    if values[group_index] != "Sim":
+        values[group_type_index] = ""
+
     return values
 
 
