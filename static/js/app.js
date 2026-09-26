@@ -1,13 +1,38 @@
 document.addEventListener('DOMContentLoaded', () => {
 	const token = document.querySelector('meta[name="csrf-token"]')?.content;
-	if (!token) return;
-	document.querySelectorAll('form[method="post"], form[method="POST"]').forEach((form) => {
-		if (form.querySelector('input[name="_csrf_token"]')) return;
-		const input = document.createElement('input');
-		input.type = 'hidden';
-		input.name = '_csrf_token';
-		input.value = token;
-		form.appendChild(input);
+	if (token) {
+		document.querySelectorAll('form[method="post"], form[method="POST"]').forEach((form) => {
+			if (form.querySelector('input[name="_csrf_token"]')) return;
+			const input = document.createElement('input');
+			input.type = 'hidden';
+			input.name = '_csrf_token';
+			input.value = token;
+			form.appendChild(input);
+		});
+	}
+	document.querySelectorAll('[data-delete-url][data-filename]').forEach((button) => {
+		button.addEventListener('click', async () => {
+			if (!window.confirm('Deseja realmente excluir este arquivo?')) return;
+			button.disabled = true;
+			try {
+				const response = await fetch(button.dataset.deleteUrl, {
+					method: 'POST',
+					headers: { Accept: 'application/json' },
+					body: new URLSearchParams({ filename: button.dataset.filename, _csrf_token: token || '' }),
+				});
+				if (!response.ok) throw new Error('Não foi possível excluir o arquivo.');
+				const list = button.closest('.document-attachment-files');
+				button.closest('li')?.remove();
+				if (list && !list.children.length) {
+					const message = list.parentElement.querySelector('.document-empty-message');
+					list.hidden = true;
+					if (message) message.hidden = false;
+				}
+			} catch (error) {
+				window.alert(error.message || 'Não foi possível excluir o arquivo.');
+				button.disabled = false;
+			}
+		});
 	});
 });
 const chartField = document.querySelector('#chart-field');

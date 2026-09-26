@@ -47,13 +47,15 @@
 		{% set matching_documents = documents|selectattr('label', 'equalto', document_label)|list %}
 		<section class="document-attachment-group">
 			<h3>{{ loop.index }}. {{ document_label }}</h3>
-			{% if matching_documents %}
-			<ul class="document-attachment-files">
+			<ul class="document-attachment-files" {% if not matching_documents %}hidden{% endif %}>
 				{% for document in matching_documents %}
-				<li><a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.filename }}</a></li>
+				<li data-document-filename="{{ document.filename }}">
+					<a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.filename }}</a>
+					{% if is_admin %}<button class="icon-button danger document-delete-button" type="button" data-delete-url="{{ url_for('excluir_documento', pid=person.id) }}" data-filename="{{ document.filename }}" aria-label="Excluir {{ document.filename }}" title="Excluir arquivo">&#128465;</button>{% endif %}
+				</li>
 				{% endfor %}
 			</ul>
-			{% else %}<span class="muted">Nenhum arquivo anexado</span>{% endif %}
+			<span class="muted document-empty-message" {% if matching_documents %}hidden{% endif %}>Nenhum arquivo anexado</span>
 		</section>
 		{% endfor %}
 	</div>

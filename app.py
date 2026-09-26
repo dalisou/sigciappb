@@ -1374,23 +1374,42 @@ def editar_pessoa(pid):
 
 @app.route("/pessoa/<int:pid>/documento/excluir", methods=["POST"])
 def excluir_documento(pid):
-    denial = admin_required()
-    if denial:
-        return denial
+    wants_json = request.accept_mimetypes.best == "application/json"
+    if not authenticated():
+        if wants_json:
+            return jsonify(error="Sessão expirada. Entre novamente."), 401
+        return redirect(url_for("login"))
+    if not is_admin():
+        if wants_json:
+            return jsonify(error="Acesso permitido apenas para administradores."), 403
+        return "Acesso permitido apenas para administradores.", 403
     filename = request.form.get("filename", "").strip()
     connection = db()
     person = connection.execute("SELECT documentos FROM pessoas WHERE id = ?", (pid,)).fetchone()
     if not person:
         connection.close()
+        if wants_json:
+            return jsonify(error="Cadastro não encontrado."), 404
         return "Não encontrado", 404
     if filename not in {item["filename"] for item in document_entries(person["documentos"])}:
         connection.close()
+        if wants_json:
+            return jsonify(error="Documento não encontrado."), 404
         return "Documento não encontrado", 404
     try:
         delete_document(filename)
-    except (FileNotFoundError, OSError):
+    except FileNotFoundError:
         connection.close()
+        if wants_json:
+            return jsonify(error="Documento não encontrado no storage."), 404
         return "Documento não encontrado", 404
+    except Exception:
+        connection.close()
+        app.logger.exception("Falha ao excluir documento %s do assistido %s", filename, pid)
+        if wants_json:
+            return jsonify(error="Falha ao excluir o arquivo do storage."), 502
+        flash("Não foi possível excluir o arquivo do storage.")
+        return redirect(url_for("editar_pessoa", pid=pid))
     connection.execute(
         "UPDATE pessoas SET documentos = ? WHERE id = ?",
         (remove_document_reference(person["documentos"], filename), pid),
@@ -1398,6 +1417,8 @@ def excluir_documento(pid):
     connection.commit()
     connection.close()
     audit("Documento excluído", "pessoa", pid)
+    if wants_json:
+        return jsonify(success=True)
     flash("Documento excluído com sucesso.")
     return redirect(url_for("editar_pessoa", pid=pid))
 
