@@ -10,6 +10,14 @@ document.addEventListener('DOMContentLoaded', () => {
 			form.appendChild(input);
 		});
 	}
+	const groupTypeFilter = document.querySelector('#group-type-filter');
+	const selectionItems = document.querySelectorAll('.selection-item[data-tema]');
+	groupTypeFilter?.addEventListener('change', () => {
+		const selectedTheme = groupTypeFilter.value;
+		selectionItems.forEach((item) => {
+			item.hidden = selectedTheme !== '' && item.dataset.tema !== selectedTheme;
+		});
+	});
 	document.querySelectorAll('[data-delete-url][data-filename]').forEach((button) => {
 		button.addEventListener('click', async () => {
 			if (!window.confirm('Deseja realmente excluir este arquivo?')) return;

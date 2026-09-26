@@ -14,7 +14,7 @@
 		</div>
 		<p class="muted"><span id="selected-count">0</span>/20 assistidos selecionados.</p>
 		<div class="selection-list">
-		{% for person in available_people %}<label class="selection-item" data-group-type="{{ person.grupo_responsabilizacao }}"><input type="checkbox" name="pessoa_id" value="{{ person.id }}"><span><strong>{{ person.nome }}</strong><small>{{ person.processo or 'Sem processo' }}{% if person.grupo_responsabilizacao %} · {{ person.grupo_responsabilizacao }}{% endif %}</small></span></label>{% endfor %}
+		{% for person in available_people %}<label class="selection-item" data-tema="{{ person.grupo_responsabilizacao }}"><input type="checkbox" name="pessoa_id" value="{{ person.id }}"><span><strong>{{ person.nome }}</strong><small>{{ person.processo or 'Sem processo' }}{% if person.grupo_responsabilizacao %} · {{ person.grupo_responsabilizacao }}{% endif %}</small></span></label>{% endfor %}
 		</div>
 		<div class="actions"><button type="submit">Formar grupo</button></div>
 	</form>
