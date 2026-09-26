@@ -56,12 +56,12 @@
 	</div>
 	<div class="card document-card">
 		<h2>Documentos</h2>
-		<p class="muted">Arquivos selecionados serão acrescentados ao cadastro. Os links ao lado abrem documentos já enviados.</p>
+		<p class="muted">Selecione um ou mais arquivos por categoria. Os arquivos serão acrescentados ao cadastro.</p>
 		<div class="document-upload-list">
 			{% for document in docs %}
 			<div class="document-upload-row">
 				<label>{{ loop.index }}. {{ document }}
-					<input type="file" name="doc_{{ loop.index0 }}" {% if loop.index == 2 %}multiple{% endif %}>
+					<input type="file" name="doc_{{ loop.index0 }}" multiple>
 				</label>
 				<div class="document-existing-links">
 					{% for existing in documents|selectattr('label', 'equalto', document)|list %}<a href="{{ url_for('documento', filename=existing.filename) }}" target="_blank" rel="noopener">Visualizar/download: {{ existing.filename }}</a>{% else %}<span class="muted">Nenhum arquivo enviado</span>{% endfor %}
