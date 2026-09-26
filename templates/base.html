@@ -6,13 +6,66 @@
   <meta name="csrf-token" content="{{ csrf_token }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=static_version) }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css', v=static_version) }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/help.css', v=static_version) }}">
 </head>
 <body>
 {% if session.get('uid') %}
-<header class="topbar"><div class="brand">CIAP <span>•</span> Gestor de Alternativas Penais</div><nav><a class="back-link" href="{{ url_for('dashboard') }}" onclick="if (history.length > 1) { history.back(); return false; }">Voltar</a><a href="{{ url_for('dashboard') }}">Painel</a><a href="{{ url_for('pessoas') }}">Assistidos</a><a href="{{ url_for('agendamentos') }}">Agendamentos</a><a href="{{ url_for('relatorios') }}">Relatórios</a><a href="{{ url_for('grupos') }}">Grupos</a><a href="{{ url_for('auditoria') }}">Auditoria</a>{% if is_admin %}<a href="{{ url_for('perfis') }}">Perfis</a>{% endif %}<a href="{{ url_for('logout') }}">Sair</a></nav></header>
+<header class="topbar"><div class="brand">CIAP <span>•</span> Gestor de Alternativas Penais</div><nav><a class="back-link" href="{{ url_for('dashboard') }}" onclick="if (history.length > 1) { history.back(); return false; }">Voltar</a><a href="{{ url_for('dashboard') }}">Painel</a><a href="{{ url_for('pessoas') }}">Assistidos</a><a href="{{ url_for('agendamentos') }}">Agendamentos</a><a href="{{ url_for('relatorios') }}">Relatórios</a><a href="{{ url_for('grupos') }}">Grupos</a><a href="{{ url_for('auditoria') }}">Auditoria</a><button class="help-nav-button" type="button" data-help-open aria-haspopup="dialog" aria-controls="help-dialog"><span aria-hidden="true">?</span> Ajuda</button>{% if is_admin %}<a href="{{ url_for('perfis') }}">Perfis</a>{% endif %}<a href="{{ url_for('logout') }}">Sair</a></nav></header>
 {% endif %}
 <main class="wrap"><div class="print-branding">{% include 'print_branding.html' %}</div>{% for message in get_flashed_messages() %}<div class="flash">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}</main>
 {% if session.get('uid') %}<footer class="site-footer"><a class="btn alt" href="{{ url_for('dashboard') }}" onclick="if (history.length > 1) { history.back(); return false; }">Voltar</a></footer>{% endif %}
+{% if session.get('uid') %}
+<dialog class="help-dialog" id="help-dialog" aria-labelledby="help-title">
+  <div class="help-modal-header">
+    <div><p class="help-eyebrow">CIAP · CENTRAL DE AJUDA</p><h2 id="help-title">Como podemos ajudar?</h2></div>
+    <button class="help-close-button" type="button" data-help-close aria-label="Fechar ajuda" title="Fechar ajuda">×</button>
+  </div>
+  <label class="help-search-label" for="help-search">Pesquisar no manual</label>
+  <div class="help-search-wrap"><span aria-hidden="true">⌕</span><input id="help-search" type="search" placeholder="Ex.: documentos, encontros, alertas" autocomplete="off"><kbd>Ctrl K</kbd></div>
+  <p class="help-search-status" id="help-search-status" aria-live="polite">5 módulos disponíveis</p>
+  <div class="help-accordion" id="help-accordion">
+    <details class="help-module" open>
+      <summary><span class="help-module-number">01</span><span>Painel de Acompanhamento</span></summary>
+      <div class="help-module-content">
+        <article class="help-topic" data-help-item><h3>Indicadores gerais</h3><p>Os indicadores do Painel mostram o total de assistidos cadastrados, atendimentos registrados e grupos em acompanhamento. Os gráficos ajudam a comparar os dados por modalidade e situação.</p></article>
+        <article class="help-topic" data-help-item><h3>Fila de alertas</h3><p>A fila reúne solicitações de retorno que aguardam vaga. Confira profissional, data e horário preferenciais antes de organizar novos agendamentos.</p></article>
+        <article class="help-topic" data-help-item><h3>Comunicados Internos</h3><p>Use os Comunicados Internos no Painel para enviar uma mensagem a outro usuário ativo. Mensagens recebidas e enviadas ficam disponíveis no mesmo local.</p></article>
+      </div>
+    </details>
+    <details class="help-module">
+      <summary><span class="help-module-number">02</span><span>Gestão de Assistidos</span></summary>
+      <div class="help-module-content">
+        <article class="help-topic" data-help-item><h3>Cadastrar e editar</h3><p>Na página Assistidos, administradores podem criar um cadastro ou abrir um registro existente e selecionar Editar Cadastro. Os identificadores ajudam o sistema a detectar cadastros duplicados.</p></article>
+        <article class="help-topic" data-help-item><h3>Anexar documentos</h3><p>No formulário do cadastro, escolha uma categoria e selecione um ou mais arquivos. Os documentos são acrescentados ao cadastro; arquivos existentes permanecem listados na categoria correspondente.</p></article>
+        <article class="help-topic" data-help-item><h3>Excluir um arquivo</h3><p>Na lista de documentos anexados do assistido, use o ícone de lixeira ao lado do arquivo e confirme a exclusão. A ação remove o arquivo do armazenamento e do cadastro. Este recurso está disponível para administradores.</p></article>
+      </div>
+    </details>
+    <details class="help-module">
+      <summary><span class="help-module-number">03</span><span>Agendamentos</span></summary>
+      <div class="help-module-content">
+        <article class="help-topic" data-help-item><h3>Filtrar atendimentos</h3><p>Na página Agendamentos, use os filtros disponíveis para localizar atendimentos por assistido, profissional, data ou situação. Confira a disponibilidade antes de confirmar horário.</p></article>
+        <article class="help-topic" data-help-item><h3>Horários preferenciais</h3><p>Quando não houver vaga adequada, registre um alerta com o profissional e os horários preferenciais. O pedido passa a aparecer na fila de alertas para consulta posterior.</p></article>
+      </div>
+    </details>
+    <details class="help-module">
+      <summary><span class="help-module-number">04</span><span>Grupos Reflexivos</span></summary>
+      <div class="help-module-content">
+        <article class="help-topic" data-help-item><h3>Filtrar por tema e selecionar participantes</h3><p>Em Formar Novo Grupo, escolha um Tipo de grupo / tema para filtrar a lista de assistidos. A filtragem só oculta os demais itens: seleções já marcadas são preservadas. Marque os participantes desejados.</p><div class="help-callout"><strong>Atenção</strong><span>O limite máximo é de 20 assistidos por turma.</span></div></article>
+        <article class="help-topic" data-help-item><h3>Registrar os encontros</h3><p>Depois de formar a turma, preencha data, horário e facilitadores do encontro e registre a frequência de cada participante. O acompanhamento contempla 10 encontros.</p></article>
+      </div>
+    </details>
+    <details class="help-module">
+      <summary><span class="help-module-number">05</span><span>Relatórios e Auditoria</span></summary>
+      <div class="help-module-content">
+        <article class="help-topic" data-help-item><h3>Relatórios de acompanhamento</h3><p>Na página Relatórios, ajuste os filtros para revisar faltas e acompanhamentos. Use Imprimir relatório para imprimir ou salvar uma cópia em PDF pelo navegador.</p></article>
+        <article class="help-topic" data-help-item><h3>Histórico de alterações</h3><p>A página Auditoria registra ações realizadas no sistema, como alterações em cadastros e exclusões. Pesquise e revise os registros conforme os filtros apresentados.</p></article>
+      </div>
+    </details>
+  </div>
+  <p class="help-no-results" id="help-no-results" hidden>Nenhum tópico corresponde à pesquisa.</p>
+  <div class="help-modal-footer"><span>Manual rápido de uso</span><button class="btn alt" type="button" data-help-close>Fechar</button></div>
+</dialog>
+{% endif %}
 </body>
-<script src="{{ url_for('static', filename='js/app.js', v=static_version, rev='1.0.1') }}" defer></script>
+<script src="{{ url_for('static', filename='js/app.js', v=static_version, rev='1.0.2') }}" defer></script>
 </html>

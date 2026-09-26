@@ -10,6 +10,59 @@ document.addEventListener('DOMContentLoaded', () => {
 			form.appendChild(input);
 		});
 	}
+	const helpDialog = document.getElementById('help-dialog');
+	const helpSearch = document.getElementById('help-search');
+	const helpStatus = document.getElementById('help-search-status');
+	const helpNoResults = document.getElementById('help-no-results');
+	const helpModules = [...document.querySelectorAll('.help-module')];
+	const helpTopics = [...document.querySelectorAll('[data-help-item]')];
+	const normalizeHelpText = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+	document.querySelectorAll('[data-help-open]').forEach((button) => {
+		button.addEventListener('click', () => {
+			helpDialog?.showModal();
+			helpSearch?.focus();
+		});
+	});
+	document.querySelectorAll('[data-help-close]').forEach((button) => {
+		button.addEventListener('click', () => helpDialog?.close());
+	});
+	helpDialog?.addEventListener('keydown', (event) => {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			helpDialog.close();
+		}
+	});
+	helpDialog?.addEventListener('click', (event) => {
+		if (event.target === helpDialog) helpDialog.close();
+	});
+	helpSearch?.addEventListener('input', () => {
+		const terms = normalizeHelpText(helpSearch.value).split(/\s+/).filter(Boolean);
+		let visibleTopics = 0;
+		helpModules.forEach((module) => {
+			const moduleTopics = [...module.querySelectorAll('[data-help-item]')];
+			let moduleMatches = 0;
+			moduleTopics.forEach((topic) => {
+				const text = normalizeHelpText(topic.textContent);
+				const matches = terms.every((term) => text.includes(term));
+				topic.hidden = !matches;
+				if (matches) moduleMatches += 1;
+			});
+			module.hidden = moduleMatches === 0;
+			if (terms.length && moduleMatches) module.open = true;
+			visibleTopics += moduleMatches;
+		});
+		if (helpStatus) helpStatus.textContent = terms.length
+			? `${visibleTopics} tópico(s) encontrado(s)`
+			: `${helpModules.length} módulos disponíveis`;
+		if (helpNoResults) helpNoResults.hidden = visibleTopics > 0;
+	});
+	document.addEventListener('keydown', (event) => {
+		if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && helpDialog) {
+			event.preventDefault();
+			if (!helpDialog.open) helpDialog.showModal();
+			helpSearch?.focus();
+		}
+	});
 	const selectTema = document.getElementById('select-tema-grupo');
 	const assistidosItems = document.querySelectorAll('.assistido-item');
 	if (selectTema && assistidosItems.length > 0) {
