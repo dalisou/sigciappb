@@ -14,5 +14,5 @@
 <main class="wrap"><div class="print-branding">{% include 'print_branding.html' %}</div>{% for message in get_flashed_messages() %}<div class="flash">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}</main>
 {% if session.get('uid') %}<footer class="site-footer"><a class="btn alt" href="{{ url_for('dashboard') }}" onclick="if (history.length > 1) { history.back(); return false; }">Voltar</a></footer>{% endif %}
 </body>
-<script src="{{ url_for('static', filename='js/app.js', v=static_version) }}" defer></script>
+<script src="{{ url_for('static', filename='js/app.js', v=static_version, rev='1.0.1') }}" defer></script>
 </html>

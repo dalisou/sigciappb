@@ -10,11 +10,11 @@
 	<form method="post" action="{{ url_for('formar_grupo') }}" id="new-group-form">
 		<div class="grid">
 			<label>Nome do grupo (opcional)<input name="nome" placeholder="Ex.: Grupo reflexivo - setembro"></label>
-			<label>Tipo de grupo / tema<select id="group-type-filter"><option value="">Todos os tipos</option>{% for group_type in available_people|map(attribute='grupo_responsabilizacao')|unique|sort %}<option value="{{ group_type }}">{{ group_type }}</option>{% endfor %}</select></label>
+			<label>Tipo de grupo / tema<select id="select-tema-grupo"><option value="">Todos os tipos</option>{% for group_type in available_people|map(attribute='grupo_responsabilizacao')|unique|sort %}<option value="{{ group_type }}">{{ group_type }}</option>{% endfor %}</select></label>
 		</div>
 		<p class="muted"><span id="selected-count">0</span>/20 assistidos selecionados.</p>
 		<div class="selection-list">
-		{% for person in available_people %}<label class="selection-item" data-tema="{{ person.grupo_responsabilizacao }}"><input type="checkbox" name="pessoa_id" value="{{ person.id }}"><span><strong>{{ person.nome }}</strong><small>{{ person.processo or 'Sem processo' }}{% if person.grupo_responsabilizacao %} · {{ person.grupo_responsabilizacao }}{% endif %}</small></span></label>{% endfor %}
+		{% for person in available_people %}<label class="selection-item assistido-item" data-tema="{{ person.grupo_responsabilizacao }}"><input type="checkbox" name="pessoa_id" value="{{ person.id }}"><span><strong>{{ person.nome }}</strong><small>{{ person.processo or 'Sem processo' }}{% if person.grupo_responsabilizacao %} · {{ person.grupo_responsabilizacao }}{% endif %}</small></span></label>{% endfor %}
 		</div>
 		<div class="actions"><button type="submit">Formar grupo</button></div>
 	</form>

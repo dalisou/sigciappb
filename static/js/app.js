@@ -10,14 +10,23 @@ document.addEventListener('DOMContentLoaded', () => {
 			form.appendChild(input);
 		});
 	}
-	const groupTypeFilter = document.querySelector('#group-type-filter');
-	const selectionItems = document.querySelectorAll('.selection-item[data-tema]');
-	groupTypeFilter?.addEventListener('change', () => {
-		const selectedTheme = groupTypeFilter.value;
-		selectionItems.forEach((item) => {
-			item.hidden = selectedTheme !== '' && item.dataset.tema !== selectedTheme;
+	const selectTema = document.getElementById('select-tema-grupo');
+	const assistidosItems = document.querySelectorAll('.assistido-item');
+	if (selectTema && assistidosItems.length > 0) {
+		selectTema.addEventListener('change', function () {
+			const temaSelecionado = this.value.toLowerCase().trim();
+			assistidosItems.forEach((item) => {
+				const temaAssistido = (item.getAttribute('data-tema') || '').toLowerCase().trim();
+				if (temaSelecionado === '' || temaSelecionado.includes('todos os tipos')) {
+					item.style.display = '';
+				} else if (temaAssistido === temaSelecionado || temaAssistido.includes(temaSelecionado)) {
+					item.style.display = '';
+				} else {
+					item.style.display = 'none';
+				}
+			});
 		});
-	});
+	}
 	document.querySelectorAll('[data-delete-url][data-filename]').forEach((button) => {
 		button.addEventListener('click', async () => {
 			if (!window.confirm('Deseja realmente excluir este arquivo?')) return;
