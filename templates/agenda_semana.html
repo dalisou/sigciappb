@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="actions print-button">
-	<a class="btn alt" href="{{ url_for('agenda_semana', inicio=previous_week) }}">Semana anterior</a>
-	<a class="btn alt" href="{{ url_for('agenda_semana') }}">Semana atual</a>
-	<a class="btn alt" href="{{ url_for('agenda_semana', inicio=next_week) }}">Próxima semana</a>
-	<button type="button" onclick="window.print()">Imprimir agenda</button>
+	<a class="btn alt" href="{{ url_for('agenda_semana', inicio=previous_week) }}">Semana Anterior</a>
+	<a class="btn alt" href="{{ url_for('agenda_semana') }}">Semana Atual</a>
+	<a class="btn alt" href="{{ url_for('agenda_semana', inicio=next_week) }}">Próxima Semana</a>
+	<button type="button" onclick="window.print()">Imprimir Agenda</button>
 </div>
 <div class="card">
 	<h1>Agenda da Semana</h1>

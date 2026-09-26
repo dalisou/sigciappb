@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% block content %}
-<h1>Painel de acompanhamento</h1>
+<h1>Painel de Acompanhamento</h1>
 <div class="grid stats">
-    <div class="card"><h2>{{ total }}</h2>Assistidos em acompanhamento</div>
-    <div class="card"><h2>{{ attendances }}</h2>atendimentos</div>
-    <div class="card"><h2>{{ groups_count }}</h2>categorias de responsabilização</div>
+    <div class="card"><h2>{{ total }}</h2>Assistidos em Acompanhamento</div>
+    <div class="card"><h2>{{ attendances }}</h2>Atendimentos</div>
+    <div class="card"><h2>{{ groups_count }}</h2>Categorias de Responsabilização</div>
 </div>
 <section class="card chart-panel">
-    <div class="chart-heading"><div><h2>Distribuição dos assistidos</h2><p class="muted">Escolha uma modalidade para comparar os cadastros.</p></div><label class="chart-select">Modalidade<select id="chart-field">{% for field, label in chart_fields.items() %}<option value="{{ field }}">{{ label }}</option>{% endfor %}<option value="frequencia">Frequência dos encontros</option></select></label></div>
+    <div class="chart-heading"><div><h2>Distribuição dos Assistidos</h2><p class="muted">Escolha uma modalidade para comparar os cadastros.</p></div><label class="chart-select">Modalidade<select id="chart-field">{% for field, label in chart_fields.items() %}<option value="{{ field }}">{{ label }}</option>{% endfor %}<option value="frequencia">Frequência dos encontros</option></select></label></div>
     <div id="dashboard-chart" class="bar-chart" aria-live="polite"></div>
 </section>
 <section class="card message-panel">
@@ -27,6 +27,12 @@
         <div class="message-actions">{% if message.remetente_id == session.uid %}<a class="btn alt" href="{{ url_for('editar_mensagem', message_id=message.id) }}">Editar</a>{% endif %}{% if message.destinatario_id == session.uid and not message.lida_em %}<form method="post" action="{{ url_for('marcar_mensagem_lida', message_id=message.id) }}"><button class="btn alt" type="submit">Marcar como lida</button></form>{% elif message.destinatario_id == session.uid %}<small class="muted">Lida em {{ message.lida_em }}</small>{% endif %}</div>
     </article>{% endfor %}</div>{% else %}<p class="muted">Você ainda não tem mensagens.</p>{% endif %}
 </section>
-<div class="card"><div class="actions">{% if is_admin %}<a class="btn" href="{{ url_for('nova') }}">+ Novo cadastro</a>{% endif %}<a class="btn alt" href="{{ url_for('exportar') }}">Exportar CSV</a></div><h2>Cadastros recentes</h2><table><tr><th>Nome</th><th>Processo</th><th>Grupo</th><th>Situação do grupo</th></tr>{% for person in people %}<tr><td><a href="{{ url_for('pessoa', pid=person.id) }}">{{ person.nome }}</a></td><td>{{ person.processo }}</td><td>{{ person.grupo_responsabilizacao }}</td><td><span class="pill">{{ person.situacao_grupo or 'Em andamento' }}</span></td></tr>{% endfor %}</table></div>
+<section class="card scheduling-alert-queue"><h2>Fila de Alerta de Agendamento</h2>
+    {% if scheduling_alerts %}<div class="table-scroll"><table><tr><th>Assistido</th><th>Profissional</th><th>Data Preferencial</th><th>Hora Preferencial</th><th>Observação</th></tr>
+    {% for alert in scheduling_alerts %}<tr><td><a href="{{ url_for('pessoa', pid=alert.pessoa_id) }}">{{ alert.nome }}</a></td><td>{{ alert.profissional }}</td><td>{{ alert.data_preferencial or 'Sem Previsão' }}</td><td>{{ alert.hora_preferencial or 'Qualquer Horário' }}</td><td>{{ alert.observacao or 'Sem Observação' }}</td></tr>{% endfor %}</table></div>
+    {% else %}<p class="muted">Nenhum alerta aguardando vaga.</p>{% endif %}
+    <a class="btn alt" href="{{ url_for('agendamentos') }}">Abrir Agendamentos</a>
+</section>
+<div class="card"><div class="actions">{% if is_admin %}<a class="btn" href="{{ url_for('nova') }}">+ Novo Cadastro</a>{% endif %}<a class="btn alt" href="{{ url_for('exportar') }}">Exportar CSV</a></div><h2>Cadastros Recentes</h2><table><tr><th>Nome</th><th>Processo</th><th>Grupo</th><th>Situação do Grupo</th></tr>{% for person in people %}<tr><td><a href="{{ url_for('pessoa', pid=person.id) }}">{{ person.nome }}</a></td><td>{{ person.processo }}</td><td>{{ person.grupo_responsabilizacao }}</td><td><span class="pill">{{ person.situacao_grupo or 'Em andamento' }}</span></td></tr>{% endfor %}</table></div>
 <script>window.dashboardCharts = {{ chart_data|safe }};</script>
 {% endblock %}

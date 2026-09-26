@@ -2,11 +2,11 @@
 {% block content %}
 <h1>{{ person.nome }}</h1>
 <div class="actions">
-	{% if is_admin %}<a class="btn" href="{{ url_for('editar_pessoa', pid=person.id) }}">Editar cadastro</a>
-	<a class="btn" href="{{ url_for('editar_frequencia', pid=person.id) }}">Editar frequência</a>{% endif %}
-	<a class="btn" href="{{ url_for('termo', pid=person.id) }}" target="_blank">Imprimir termo</a>
-	<a class="btn" href="{{ url_for('novo_atendimento', pid=person.id) }}">Registrar atendimento</a>
-	<a class="btn" href="{{ url_for('agendamentos', pessoa_id=person.id) }}">Agendar retorno</a>
+	{% if is_admin %}<a class="btn" href="{{ url_for('editar_pessoa', pid=person.id) }}">Editar Cadastro</a>
+	<a class="btn" href="{{ url_for('editar_frequencia', pid=person.id) }}">Editar Frequência</a>{% endif %}
+	<a class="btn" href="{{ url_for('termo', pid=person.id) }}" target="_blank">Imprimir Termo</a>
+	<a class="btn" href="{{ url_for('novo_atendimento', pid=person.id) }}">Atendimento Multidisciplinar</a>
+	<a class="btn" href="{{ url_for('agendamentos', pessoa_id=person.id) }}">Agendar Retorno</a>
 </div>
 <div class="card">
 	<h2>Dados</h2>
@@ -33,7 +33,7 @@
 	{% endfor %}</table>
 </div>
 <div class="card">
-	<h2>Retornos agendados</h2>
+	<h2>Retornos Agendados</h2>
 	{% if scheduling_alerts %}<div class="scheduling-alert"><strong>Alerta de agendamento:</strong> este assistido aguarda vaga para {% for alert in scheduling_alerts %}{{ alert.profissional }}{% if alert.data_preferencial %}, preferencialmente em {{ alert.data_preferencial }}{% endif %}{% if alert.hora_preferencial %} às {{ alert.hora_preferencial }}{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}. Consulte a fila de alertas na página de Agendamentos.</div>{% endif %}
 	{% if missed_appointments %}<div class="attendance-alert attendance-alert-block">Alerta: o assistido não compareceu ao agendamento marcado.</div>{% endif %}
 	{% if appointments %}<table><tr><th>Data</th><th>Hora</th><th>Profissional</th><th>Status</th><th>Observação</th><th>Atualizar</th></tr>

@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 {% block content %}
-<h1>Frequência dos 10 encontros</h1>
+<h1>Frequência dos 10 Encontros</h1>
 <p class="muted">{{ person.nome }}. Esta tela altera somente a frequência e a situação do grupo.</p>
 <form method="post">
 	<div class="card">
-		<h2>Situação do grupo</h2>
+		<h2>Situação do Grupo</h2>
 		<label>Situação
 			<select name="situacao_grupo">
 				{% for option in group_status_options %}<option value="{{ option }}" {% if (person.situacao_grupo or 'Em andamento') == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
@@ -19,6 +19,6 @@
 		<tr><td>{{ index }}º encontro</td><td><select name="frequencia_status_{{ index }}">{% for option in frequency_status_options %}<option value="{{ option }}" {% if frequency and frequency.status == option %}selected{% endif %}>{{ option or 'Não registrado' }}</option>{% endfor %}</select></td><td><input type="date" name="frequencia_data_{{ index }}" value="{{ frequency.data if frequency else '' }}"></td></tr>
 		{% endfor %}</table>
 	</div>
-	<div class="actions"><button>Salvar frequência</button><a class="btn alt" href="{{ url_for('pessoa', pid=person.id) }}">Cancelar</a></div>
+	<div class="actions"><button>Salvar Frequência</button><a class="btn alt" href="{{ url_for('pessoa', pid=person.id) }}">Cancelar</a></div>
 </form>
 {% endblock %}

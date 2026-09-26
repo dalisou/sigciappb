@@ -9,12 +9,12 @@
 				{% if field in ['relato','intervencao','pendencias','recomendacao'] %}
 				<textarea name="{{ field }}">{{ attendance[field] if attendance else '' }}</textarea>
 				{% else %}
-				<input name="{{ field }}" value="{{ attendance[field] if attendance else '' }}" {% if field == 'data' %}type="date"{% endif %}>
+				<input name="{{ field }}" value="{{ attendance[field] if attendance else '' }}" {% if field == 'data' %}type="date"{% elif field == 'profissional' %}readonly{% endif %}>
 				{% endif %}
 			</label>
 			{% endfor %}
 		</div>
 	</div>
-	<button>Salvar atendimento</button>
+	<button>Salvar Atendimento Multidisciplinar</button>
 </form>
 {% endblock %}

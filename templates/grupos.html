@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 {% block content %}
-<h1>Grupos reflexivos</h1>
+<h1>Grupos Reflexivos</h1>
 <p class="muted">Selecione até 20 assistidos para formar uma turma e acompanhe os 10 encontros nesta mesma tela.</p>
 
 {% if is_admin %}
 <div class="card">
-	<h2>Formar novo grupo</h2>
+	<h2>Formar Novo Grupo</h2>
 	{% if available_people %}
 	<form method="post" action="{{ url_for('formar_grupo') }}" id="new-group-form">
 		<div class="grid">
