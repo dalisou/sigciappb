@@ -46,3 +46,13 @@
   .term-print-page .signature-box{min-height:14mm;padding:1mm}
   .term-print-page .signature-line{font-size:11px}
 }
+
+.article-picker{min-width:0;margin:0;padding:0;border:0}
+.article-picker legend{margin-bottom:6px;color:#52606d;font-size:12px;font-weight:bold}
+.article-filter-label{margin-bottom:4px}
+.article-filter{margin:0 0 8px}
+.article-options{max-height:200px;overflow-y:auto;padding:8px;border:1px solid var(--line);border-radius:5px;background:#fff}
+.article-option{display:flex;align-items:flex-start;gap:8px;padding:4px 2px}
+.article-option[hidden]{display:none}
+.article-option input[type="checkbox"]{flex:none;width:auto;margin:3px 0 0}
+.article-option label{margin:0;color:var(--ink);font-size:13px;font-weight:normal;line-height:1.4;overflow-wrap:anywhere;cursor:pointer}

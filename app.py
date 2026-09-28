@@ -1330,6 +1330,7 @@ def nova():
             return render_template(
                 "pessoa_form.html", title="Novo cadastro",
                 artigos_selecionados=submitted_articles(),
+                lista_opcoes_artigos=ARTICLE_OPTIONS,
             )
         cursor = connection.execute(
             "INSERT INTO pessoas(criado_em, criado_por, %s) VALUES (?, ?, %s)" % (
@@ -1357,6 +1358,7 @@ def nova():
         return redirect(url_for("pessoa", pid=person_id))
     return render_template(
         "pessoa_form.html", title="Novo cadastro", artigos_selecionados=[],
+        lista_opcoes_artigos=ARTICLE_OPTIONS,
     )
 @app.route("/pessoa/<int:pid>/editar", methods=["GET", "POST"])
 def editar_pessoa(pid):
@@ -1378,6 +1380,7 @@ def editar_pessoa(pid):
                 "pessoa_form.html", title="Editar cadastro", person=person,
                 documents=document_entries(person["documentos"]),
                 artigos_selecionados=submitted_articles(),
+                lista_opcoes_artigos=ARTICLE_OPTIONS,
             )
         connection.execute(
             "UPDATE pessoas SET %s WHERE id = ?" % ", ".join(f"{field} = ?" for field in FIELDS),
@@ -1405,6 +1408,7 @@ def editar_pessoa(pid):
         "pessoa_form.html", title="Editar cadastro", person=person,
         documents=document_entries(person["documentos"]),
         artigos_selecionados=parse_selected_articles(person["artigo"]),
+        lista_opcoes_artigos=ARTICLE_OPTIONS,
     )
 
 

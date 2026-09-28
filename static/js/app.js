@@ -17,6 +17,14 @@ document.addEventListener('DOMContentLoaded', () => {
 	const helpModules = [...document.querySelectorAll('.help-module')];
 	const helpTopics = [...document.querySelectorAll('[data-help-item]')];
 	const normalizeHelpText = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+	const articleFilter = document.getElementById('filtro_artigos');
+	const articleOptions = document.querySelectorAll('#caixa_artigos .article-option');
+	articleFilter?.addEventListener('input', () => {
+		const term = normalizeHelpText(articleFilter.value);
+		articleOptions.forEach((option) => {
+			option.hidden = !normalizeHelpText(option.textContent).includes(term);
+		});
+	});
 	document.querySelectorAll('[data-help-open]').forEach((button) => {
 		button.addEventListener('click', () => {
 			helpDialog?.showModal();

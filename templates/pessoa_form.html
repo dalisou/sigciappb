@@ -9,12 +9,20 @@
 			{% for field in fields %}
 			{% set current_value = person[field] if person else '' %}
 			{% if field == 'artigo' %}
-			<label>{{ labels[field] }}
-				<select name="artigo" multiple size="6" aria-describedby="artigo-help">
-					{% for option in article_options %}<option value="{{ option }}" {% if option in artigos_selecionados|default([]) %}selected{% endif %}>{{ option }}</option>{% endfor %}
-				</select>
-				<small id="artigo-help" class="field-help">Selecione um ou mais artigos.</small>
-			</label>
+			<fieldset class="article-picker" aria-describedby="artigo-help">
+				<legend>{{ labels[field] }}</legend>
+				<label class="article-filter-label" for="filtro_artigos">Filtrar artigos</label>
+				<input type="search" id="filtro_artigos" class="article-filter" placeholder="Digite para filtrar os artigos..." autocomplete="off">
+				<div id="caixa_artigos" class="article-options" role="group" aria-label="Opções de Artigo/Capitulação">
+					{% for option in lista_opcoes_artigos %}
+					<div class="article-option">
+						<input type="checkbox" name="artigo_capitulacao" value="{{ option }}" id="artigo_{{ loop.index }}" {% if option in artigos_selecionados|default([]) %}checked{% endif %}>
+						<label for="artigo_{{ loop.index }}">{{ option }}</label>
+					</div>
+					{% endfor %}
+				</div>
+				<small id="artigo-help" class="field-help">Marque uma ou mais opções. A busca não altera os itens selecionados.</small>
+			</fieldset>
 			{% elif field in select_options %}
 			<label>{{ labels[field] }}
 				<select name="{{ field }}">
