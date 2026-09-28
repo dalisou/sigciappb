@@ -1,10 +1,12 @@
 @media screen{
+  html,body{height:auto;overflow:auto}
   .print-branding,.print-footer{display:none}
   .print-layout>thead,.print-layout>tfoot{display:none}
 }
 
 @media print{
   @page{margin:20mm 15mm}
+  html,body{height:auto!important;min-height:0;overflow:visible!important}
   body{padding:0;background:#fff}
   body.print-page{margin:0;padding:0}
   .print-layout{width:100%;border-collapse:collapse}
@@ -18,11 +20,42 @@
   .print-logo-right{position:absolute;top:1mm;right:0;width:35mm;height:auto}
   .print-footer{display:block;width:58mm;height:auto;margin:0}
   .print-footer img{display:block;width:58mm;height:auto}
-  .topbar,.site-footer,.print-button,.actions,.report-filters{display:none!important}
+  .no-print,.topbar,.site-footer,.print-button,.actions,.report-filters{display:none!important}
   .wrap{max-width:none;margin:0;padding:0}
   .card{box-shadow:none}
   body.group-frequency-print-page .receipt-section:first-of-type{break-inside:avoid;page-break-inside:avoid}
   body.group-frequency-print-page .frequency-print-table{page-break-inside:auto;break-inside:auto}
   body.group-frequency-print-page .frequency-print-table thead{display:table-header-group}
   body.group-frequency-print-page .frequency-print-table tr{page-break-inside:avoid;break-inside:avoid}
+}
+
+@media screen{
+  body.term-print-page{margin:24px auto;padding:0;overflow:auto;height:auto}
+  body.term-print-page .print-layout{max-width:820px;margin:0 auto}
+  body.term-print-page h1{margin:0 0 12px;text-align:center;font-size:22px}
+  body.term-print-page h2{margin:14px 0 7px;font-size:16px}
+  body.term-print-page .print-row{grid-template-columns:minmax(190px,1fr) 2fr;padding:6px 8px}
+  body.term-print-page .signature-row{gap:28px;margin-top:24px}
+}
+
+@media print{
+  @page term{size:A4 portrait;margin:10mm 12mm}
+  body.term-print-page{page:term;margin:0;padding:0;height:auto;overflow:visible}
+  body.term-print-page .print-layout{width:100%;margin:0}
+  body.term-print-page .print-layout>thead>tr>td{height:20mm;padding:0 0 3mm}
+  body.term-print-page .print-layout>tfoot>tr>td{height:12mm;padding:3mm 0 0}
+  body.term-print-page .print-header{height:17mm}
+  body.term-print-page .print-logo-center{width:64mm}
+  body.term-print-page .print-logo-right{width:28mm}
+  body.term-print-page .print-footer,body.term-print-page .print-footer img{width:48mm}
+  body.term-print-page h1{margin:0 0 5mm;font-size:17pt}
+  body.term-print-page h2{margin:4mm 0 2mm;font-size:11pt;break-after:avoid;page-break-after:avoid}
+  body.term-print-page p{margin:2mm 0;font-size:9.5pt;line-height:1.3}
+  body.term-print-page .print-row{grid-template-columns:1fr 1.5fr;padding:1.2mm 2mm;font-size:9pt;line-height:1.2;break-inside:avoid;page-break-inside:avoid}
+  body.term-print-page .term-date{margin-top:3mm}
+  body.term-print-page .signature-row{gap:12mm;margin-top:9mm;break-inside:avoid;page-break-inside:avoid}
+  body.term-print-page .signature-box{min-height:20mm;padding-top:2mm;font-size:9pt}
+  body.term-print-page .signature-box strong{margin-top:1mm;font-size:9pt;font-weight:normal}
+  body.term-print-page .signature-details{gap:0;margin-top:1mm;font-size:9pt}
+  body.term-print-page .signature-details div:last-child{padding-left:0}
 }

@@ -1849,11 +1849,26 @@ def get_person(person_id):
 def termo(pid):
     if not authenticated():
         return redirect(url_for("login"))
-    person = get_person(pid)
-    if not person:
+    connection = db()
+    assistido = connection.execute("SELECT * FROM pessoas WHERE id = ?", (pid,)).fetchone()
+    servidor = connection.execute(
+        "SELECT nome, cargo FROM users WHERE id = ?", (session["uid"],)
+    ).fetchone()
+    connection.close()
+    if not assistido:
         return "Não encontrado", 404
-    identity_fields = ["nome", "nome_social", "cpf", "rg", "nome_mae", "processo", "rji", "vara", "telefone"]
-    return printable("Termo de Atendimento", render_template("termo.html", person=person, identity_fields=identity_fields))
+    identity_fields = [
+        "nome", "nome_social", "cpf", "rg", "data_nascimento", "nome_mae",
+        "processo", "vara", "rji", "telefone",
+    ]
+    return printable(
+        "Termo de Atendimento",
+        render_template(
+            "termo.html", assistido=assistido, servidor=servidor,
+            identity_fields=identity_fields,
+        ),
+        print_class="term-print-page",
+    )
 
 
 @app.route("/retorno/<int:aid>")
