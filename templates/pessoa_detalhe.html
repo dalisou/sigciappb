@@ -52,7 +52,7 @@
 				{% for document in matching_documents %}
 				<li data-document-filename="{{ document.filename }}">
 					<a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.display_name }}</a>
-					{% if is_admin %}<form method="post" action="{{ url_for('excluir_documento', pid=person.id) }}" onsubmit="return confirm('Excluir documento?');">
+					{% if is_admin %}<form method="post" action="{{ url_for('excluir_documento', pid=person.id) }}" onsubmit="return confirm('Tem certeza que deseja excluir este documento?');">
 						<input type="hidden" name="filename" value="{{ document.filename }}">
 						<button class="icon-button danger" type="submit" aria-label="Excluir {{ document.display_name }}" title="Excluir arquivo">&#128465;</button>
 					</form>{% endif %}

@@ -764,6 +764,18 @@ def document_entries(documentos):
     return entries
 
 
+def document_owner_id(filename):
+    connection = db()
+    people = connection.execute(
+        "SELECT id, documentos FROM pessoas WHERE documentos IS NOT NULL AND documentos <> ''"
+    ).fetchall()
+    connection.close()
+    for person in people:
+        if filename in {entry["filename"] for entry in document_entries(person["documentos"])}:
+            return person["id"]
+    return None
+
+
 def remove_document_reference(documentos, filename):
     lines = []
     for line in (documentos or "").splitlines():
@@ -1469,18 +1481,11 @@ def excluir_documento(pid):
         return "Documento não encontrado", 404
     try:
         delete_document(filename)
-    except FileNotFoundError:
-        connection.close()
-        if wants_json:
-            return jsonify(error="Documento não encontrado no storage."), 404
-        return "Documento não encontrado", 404
     except Exception:
-        connection.close()
-        app.logger.exception("Falha ao excluir documento %s do assistido %s", filename, pid)
-        if wants_json:
-            return jsonify(error="Falha ao excluir o arquivo do storage."), 502
-        flash("Não foi possível excluir o arquivo do storage.")
-        return redirect(url_for("pessoa", pid=pid))
+        app.logger.exception(
+            "Falha ao excluir o objeto %s do assistido %s; a referência será removida mesmo assim",
+            filename, pid,
+        )
     connection.execute(
         "UPDATE pessoas SET documentos = ? WHERE id = ?",
         (remove_document_reference(person["documentos"], filename), pid),
@@ -1832,18 +1837,43 @@ def documento(filename):
         return "Não encontrado", 404
     if using_object_storage():
         try:
-            url = object_storage().generate_presigned_url(
+            storage = object_storage()
+            storage.head_object(Bucket=os.environ["CIAP_S3_BUCKET"], Key=object_key)
+            url = storage.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": os.environ["CIAP_S3_BUCKET"], "Key": object_key},
                 ExpiresIn=300,
             )
-        except Exception:
-            app.logger.exception("Falha ao gerar URL privada do documento")
-            return "Não encontrado", 404
+        except Exception as error:
+            error_response = getattr(error, "response", {}) or {}
+            error_code = str(error_response.get("Error", {}).get("Code", ""))
+            status_code = error_response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+            if error_code in {"404", "NoSuchKey", "NotFound"} or status_code == 404:
+                person_id = document_owner_id(object_key)
+                flash(
+                    "O arquivo físico deste documento não foi localizado no servidor. "
+                    "Por favor, exclua o registro e faça o re-upload.",
+                    "warning",
+                )
+                if person_id:
+                    return redirect(url_for("pessoa", pid=person_id))
+                return redirect(url_for("pessoas"))
+            app.logger.exception("Falha ao verificar ou gerar URL privada do documento")
+            return "Não foi possível acessar o documento no armazenamento.", 502
         return redirect(url)
     requested = (UPLOADS / object_key.removeprefix("documentos/")).resolve()
-    if UPLOADS not in requested.parents or not requested.is_file():
+    if UPLOADS not in requested.parents:
         return "Não encontrado", 404
+    if not requested.is_file():
+        person_id = document_owner_id(object_key)
+        flash(
+            "O arquivo físico deste documento não foi localizado no servidor. "
+            "Por favor, exclua o registro e faça o re-upload.",
+            "warning",
+        )
+        if person_id:
+            return redirect(url_for("pessoa", pid=person_id))
+        return redirect(url_for("pessoas"))
     return send_file(requested, conditional=True)
 
 
