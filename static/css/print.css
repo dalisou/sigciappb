@@ -39,7 +39,7 @@
 }
 
 @media print{
-  @page term{size:A4 portrait;margin:12mm 15mm}
+  @page term{size:A4 portrait;margin:10mm 15mm}
   body.term-print-page{page:term;margin:0;padding:0;height:auto;overflow:visible}
   body.term-print-page .print-layout{width:100%;margin:0}
   body.term-print-page .print-layout>thead>tr>td{height:20mm;padding:0 0 3mm}
@@ -48,14 +48,15 @@
   body.term-print-page .print-logo-center{width:64mm}
   body.term-print-page .print-logo-right{width:28mm}
   body.term-print-page .print-footer,body.term-print-page .print-footer img{width:48mm}
-  body.term-print-page h1{margin:0 0 3mm;font-size:12px}
-  body.term-print-page h2{margin:2mm 0 1mm;font-size:12px;break-after:avoid;page-break-after:avoid}
+  body.term-print-page h1{margin:0 0 2mm;font-size:12px}
+  body.term-print-page h2{margin:1.5mm 0 1mm;font-size:12px;break-after:avoid;page-break-after:avoid}
   body.term-print-page p{margin:1mm 0;font-size:11px;line-height:1.2}
-  body.term-print-page .print-row{grid-template-columns:1fr 1.5fr;padding:0.7mm 1.5mm;font-size:11px;line-height:1.15;break-inside:avoid!important;page-break-inside:avoid!important}
+  body.term-print-page table,body.term-print-page tr{page-break-inside:avoid!important;break-inside:avoid!important}
+  body.term-print-page .print-row{grid-template-columns:1fr 1.5fr;padding:0.6mm 1.5mm;font-size:11px;line-height:1.15;break-inside:avoid!important;page-break-inside:avoid!important}
   body.term-print-page .term-date{margin-top:3mm}
-  body.term-print-page .term-signature-block{break-inside:avoid!important;page-break-inside:avoid!important}
-  body.term-print-page .signature-row{gap:12mm;margin-top:5mm;break-inside:avoid!important;page-break-inside:avoid!important}
-  body.term-print-page .signature-box{min-height:16mm;padding-top:1.5mm;font-size:11px}
+  body.term-print-page .term-signature-block,body.term-print-page .bloco-assinatura{break-inside:avoid!important;page-break-inside:avoid!important}
+  body.term-print-page .signature-row{gap:12mm;margin-top:4mm;break-inside:avoid!important;page-break-inside:avoid!important}
+  body.term-print-page .signature-box{min-height:14mm;padding-top:1mm;font-size:11px}
   body.term-print-page .signature-box strong{margin-top:1mm;font-size:11px;font-weight:normal}
   body.term-print-page .signature-details{gap:0;margin-top:1mm;font-size:11px}
   body.term-print-page .signature-details div:last-child{padding-left:0}

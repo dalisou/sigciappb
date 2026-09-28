@@ -16,15 +16,17 @@
 .term-print-page .term-signature-block{margin-top:12px;padding:0 8px}
 .term-print-page .term-signature-block h2{margin:8px 0 5px}
 .term-print-page .term-signature-block p{line-height:1.35}
-.term-print-page .signature-row{gap:18px;margin-top:16px}
+.term-print-page .bloco-assinatura{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:16px}
 .term-print-page .signature-box{min-height:84px;padding:9px 5px 0}
+.term-print-page .signature-line{margin-bottom:5px;white-space:nowrap}
 @media print{
   html,body{height:auto!important;overflow:visible!important}
   .no-print{display:none!important}
   .term-print-page{font-size:11px}
-  .term-print-page .term-signature-block,.term-print-page .signature-row{break-inside:avoid!important;page-break-inside:avoid!important}
+  .term-print-page .term-signature-block,.term-print-page .bloco-assinatura,.term-print-page .bloco-assinatura table,.term-print-page .bloco-assinatura tr{break-inside:avoid!important;page-break-inside:avoid!important}
   .term-print-page .print-header img{max-height:45px;width:auto;object-fit:contain}
   .term-print-page .term-signature-block{margin-top:5px;padding:0 4px}
-  .term-print-page .signature-row{gap:12mm;margin-top:5mm}
-  .term-print-page .signature-box{min-height:16mm;padding:1.5mm 1mm 0}
+  .term-print-page .bloco-assinatura{gap:12mm;margin-top:4mm}
+  .term-print-page .signature-box{min-height:14mm;padding:1mm}
+  .term-print-page .signature-line{font-size:11px}
 }

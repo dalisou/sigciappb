@@ -1,22 +1,29 @@
 <h1>Termo de Atendimento</h1>
 <h2>Identificação do Assistido(a)</h2>
-{% for field in identity_fields %}
 <div class="print-row">
-	<span class="label">{{ labels[field] }}</span>
-	<span>{{ assistido[field] if assistido[field] else '—' }}</span>
+	<span class="label">Nome Completo</span>
+	<span>{{ assistido.nome or '—' }}</span>
 </div>
-{% endfor %}
+<div class="print-row"><span class="label">Nome Social</span><span>{{ assistido.nome_social or '—' }}</span></div>
+<div class="print-row"><span class="label">CPF</span><span>{{ assistido.cpf or '—' }}</span></div>
+<div class="print-row"><span class="label">RG / Órgão Emissor</span><span>{{ assistido.rg or '—' }}</span></div>
+<div class="print-row"><span class="label">Nome da Mãe</span><span>{{ assistido.nome_mae or '—' }}</span></div>
+<div class="print-row"><span class="label">Processo Judicial nº</span><span>{{ assistido.numero_processo or '—' }}</span></div>
+<div class="print-row"><span class="label">RJI nº / ID Único</span><span>{{ assistido.rji or '—' }}</span></div>
+<div class="print-row"><span class="label">Órgão Judicial (Vara/Comarca)</span><span>{{ assistido.orgao_judicial or '—' }}</span></div>
+<div class="print-row"><span class="label">Telefone(s) (WhatsApp)</span><span>{{ assistido.telefone or '—' }}</span></div>
 <section class="term-signature-block">
 <h2>Termo de Ciência e Compromisso</h2>
 <p>Declaro ter comparecido voluntariamente à CIAP e estar ciente das condições para o cumprimento da minha medida. Comprometo-me a manter meus dados atualizados e cumprir as determinações legais. Estou ciente de que o descumprimento será comunicado à Vara de Alternativas Penais.</p>
 <p class="term-date">Data: ____/______________/________.</p>
-<div class="signature-row">
+	<div class="bloco-assinatura signature-row">
 	<div class="signature-box">
-		<span>Assinatura do Assistido(a)</span>
-		<strong>{{ assistido.nome if assistido.nome else '—' }}</strong>
+		<div class="signature-line">________________________________________</div>
+		<span>Assinatura do(a) Assistido(a)</span>
 	</div>
 	<div class="signature-box">
-		<span>Assinatura do Servidor(a)</span>
+		<div class="signature-line">________________________________________</div>
+		<span>Assinatura do(a) Servidor(a) / Técnico(a)</span>
 		<strong>{{ servidor.nome if servidor and servidor.nome else '—' }}</strong>
 		<div class="signature-details"><div><span>Cargo:</span> {{ servidor.cargo if servidor and servidor.cargo else '—' }}</div></div>
 	</div>

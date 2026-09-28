@@ -1857,11 +1857,28 @@ def termo(pid):
     connection.close()
     if not assistido:
         return "Não encontrado", 404
+
+    def assistido_value(*field_names):
+        for field_name in field_names:
+            if field_name in assistido.keys() and assistido[field_name]:
+                return assistido[field_name]
+        return "—"
+
+    assistido_termo = {
+        "nome": assistido_value("nome"),
+        "nome_social": assistido_value("nome_social"),
+        "cpf": assistido_value("cpf"),
+        "rg": assistido_value("rg"),
+        "nome_mae": assistido_value("nome_mae"),
+        "numero_processo": assistido_value("numero_processo", "processo"),
+        "rji": assistido_value("rji", "numero_inscricao", "id_unico"),
+        "orgao_judicial": assistido_value("orgao_judicial", "vara", "vara_comarca"),
+        "telefone": assistido_value("telefone"),
+    }
     return printable(
         "Termo de Atendimento",
         render_template(
-            "termo.html", assistido=assistido, servidor=servidor,
-            identity_fields=FIELDS,
+            "termo.html", assistido=assistido_termo, servidor=servidor,
         ),
         print_class="term-print-page",
     )
