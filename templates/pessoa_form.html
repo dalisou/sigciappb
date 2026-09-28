@@ -71,7 +71,7 @@
 					<input type="file" name="doc_{{ loop.index0 }}" multiple>
 				</label>
 				<div class="document-existing-links">
-					{% for existing in documents|selectattr('label', 'equalto', document)|list %}<a href="{{ url_for('documento', filename=existing.filename) }}" target="_blank" rel="noopener">Visualizar/download: {{ existing.filename }}</a>{% else %}<span class="muted">Nenhum arquivo enviado</span>{% endfor %}
+					{% for existing in documents|selectattr('label', 'equalto', document)|list %}<a href="{{ url_for('documento', filename=existing.filename) }}" target="_blank" rel="noopener">Visualizar/download: {{ existing.display_name }}</a>{% else %}<span class="muted">Nenhum arquivo enviado</span>{% endfor %}
 				</div>
 			</div>
 			{% endfor %}
@@ -84,7 +84,7 @@
 	<h3>Arquivos enviados</h3>
 	<ul class="document-list">
 		{% for document in documents %}
-		<li><a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.label }}: {{ document.filename }}</a>
+		<li><a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.label }}: {{ document.display_name }}</a>
 			<form method="post" action="{{ url_for('excluir_documento', pid=person.id) }}" onsubmit="return confirm('Deseja realmente excluir este arquivo?');">
 				<input type="hidden" name="filename" value="{{ document.filename }}">
 				<button class="icon-button danger" type="submit" aria-label="Excluir arquivo" title="Excluir arquivo">&#128465;</button>

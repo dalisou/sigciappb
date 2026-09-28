@@ -51,8 +51,11 @@
 			<ul class="document-attachment-files" {% if not matching_documents %}hidden{% endif %}>
 				{% for document in matching_documents %}
 				<li data-document-filename="{{ document.filename }}">
-					<a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.filename }}</a>
-					{% if is_admin %}<button class="icon-button danger document-delete-button" type="button" data-delete-url="{{ url_for('excluir_documento', pid=person.id) }}" data-filename="{{ document.filename }}" aria-label="Excluir {{ document.filename }}" title="Excluir arquivo">&#128465;</button>{% endif %}
+					<a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.display_name }}</a>
+					{% if is_admin %}<form method="post" action="{{ url_for('excluir_documento', pid=person.id) }}" onsubmit="return confirm('Excluir documento?');">
+						<input type="hidden" name="filename" value="{{ document.filename }}">
+						<button class="icon-button danger" type="submit" aria-label="Excluir {{ document.display_name }}" title="Excluir arquivo">&#128465;</button>
+					</form>{% endif %}
 				</li>
 				{% endfor %}
 			</ul>

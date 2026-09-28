@@ -160,6 +160,17 @@ def object_storage():
     return boto3.client(**options)
 
 
+def document_object_key(filename):
+    filename = (filename or "").strip().replace("\\", "/")
+    while filename.startswith("documentos/"):
+        filename = filename[len("documentos/"):]
+    if not filename or filename.startswith("/") or any(
+        part in {"", ".", ".."} for part in filename.split("/")
+    ):
+        raise ValueError("Nome de documento inválido")
+    return f"documentos/{filename}"
+
+
 def storage_upload(stream, filename):
     extra_args = {}
     encryption = os.environ.get("CIAP_S3_SERVER_SIDE_ENCRYPTION", "")
@@ -168,7 +179,7 @@ def storage_upload(stream, filename):
     object_storage().upload_fileobj(
         stream,
         os.environ["CIAP_S3_BUCKET"],
-        f"documentos/{filename}",
+        document_object_key(filename),
         ExtraArgs=extra_args,
     )
 ADMIN_EMAIL = os.environ.get("CIAP_ADMIN_EMAIL", "admin@ciap.local")
@@ -723,10 +734,16 @@ def upload_filename(person_id, document_index, original_name):
 
 
 def save_document(uploaded, filename):
+    object_key = document_object_key(filename)
     if using_object_storage():
-        storage_upload(uploaded.stream, filename)
+        storage_upload(uploaded.stream, object_key)
     else:
-        uploaded.save(UPLOADS / filename)
+        relative_path = object_key.removeprefix("documentos/")
+        target = (UPLOADS / relative_path).resolve()
+        if UPLOADS not in target.parents:
+            raise ValueError("Nome de documento inválido")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        uploaded.save(target)
 
 
 def document_entries(documentos):
@@ -738,7 +755,12 @@ def document_entries(documentos):
         for filename in filenames.split(", "):
             filename = filename.strip()
             if filename:
-                entries.append({"label": label.strip(), "filename": filename})
+                object_key = document_object_key(filename)
+                entries.append({
+                    "label": label.strip(),
+                    "filename": object_key,
+                    "display_name": object_key.removeprefix("documentos/"),
+                })
     return entries
 
 
@@ -749,17 +771,22 @@ def remove_document_reference(documentos, filename):
         if not separator:
             lines.append(line)
             continue
-        remaining = [item for item in filenames.split(", ") if item.strip() != filename]
+        remaining = [
+            document_object_key(item)
+            for item in filenames.split(", ")
+            if item.strip() and document_object_key(item) != document_object_key(filename)
+        ]
         if remaining:
             lines.append(f"{label}: {', '.join(remaining)}")
     return "\n".join(lines) + ("\n" if lines else "")
 
 
 def delete_document(filename):
+    object_key = document_object_key(filename)
     if using_object_storage():
-        object_storage().delete_object(Bucket=os.environ["CIAP_S3_BUCKET"], Key=f"documentos/{filename}")
+        object_storage().delete_object(Bucket=os.environ["CIAP_S3_BUCKET"], Key=object_key)
         return
-    requested = (UPLOADS / filename).resolve()
+    requested = (UPLOADS / object_key.removeprefix("documentos/")).resolve()
     if UPLOADS not in requested.parents or not requested.is_file():
         raise FileNotFoundError(filename)
     requested.unlink()
@@ -1343,9 +1370,9 @@ def nova():
             names = []
             for uploaded in request.files.getlist(f"doc_{index}"):
                 if uploaded and uploaded.filename:
-                    filename = upload_filename(person_id, index, uploaded.filename)
-                    save_document(uploaded, filename)
-                    names.append(filename)
+                    object_key = document_object_key(upload_filename(person_id, index, uploaded.filename))
+                    save_document(uploaded, object_key)
+                    names.append(object_key)
             if names:
                 connection.execute(
                     "UPDATE pessoas SET documentos = COALESCE(documentos, '') || ? WHERE id = ?",
@@ -1390,9 +1417,9 @@ def editar_pessoa(pid):
             names = []
             for uploaded in request.files.getlist(f"doc_{index}"):
                 if uploaded and uploaded.filename:
-                    filename = upload_filename(pid, index, uploaded.filename)
-                    save_document(uploaded, filename)
-                    names.append(filename)
+                    object_key = document_object_key(upload_filename(pid, index, uploaded.filename))
+                    save_document(uploaded, object_key)
+                    names.append(object_key)
             if names:
                 connection.execute(
                     "UPDATE pessoas SET documentos = COALESCE(documentos, '') || ? WHERE id = ?",
@@ -1424,6 +1451,10 @@ def excluir_documento(pid):
             return jsonify(error="Acesso permitido apenas para administradores."), 403
         return "Acesso permitido apenas para administradores.", 403
     filename = request.form.get("filename", "").strip()
+    try:
+        filename = document_object_key(filename)
+    except ValueError:
+        return "Documento não encontrado", 404
     connection = db()
     person = connection.execute("SELECT documentos FROM pessoas WHERE id = ?", (pid,)).fetchone()
     if not person:
@@ -1449,7 +1480,7 @@ def excluir_documento(pid):
         if wants_json:
             return jsonify(error="Falha ao excluir o arquivo do storage."), 502
         flash("Não foi possível excluir o arquivo do storage.")
-        return redirect(url_for("editar_pessoa", pid=pid))
+        return redirect(url_for("pessoa", pid=pid))
     connection.execute(
         "UPDATE pessoas SET documentos = ? WHERE id = ?",
         (remove_document_reference(person["documentos"], filename), pid),
@@ -1460,7 +1491,7 @@ def excluir_documento(pid):
     if wants_json:
         return jsonify(success=True)
     flash("Documento excluído com sucesso.")
-    return redirect(url_for("editar_pessoa", pid=pid))
+    return redirect(url_for("pessoa", pid=pid))
 
 
 @app.route("/pessoa/<int:pid>/frequencia", methods=["GET", "POST"])
@@ -1795,18 +1826,22 @@ def agenda_semana():
 def documento(filename):
     if not authenticated():
         return redirect(url_for("login"))
+    try:
+        object_key = document_object_key(filename)
+    except ValueError:
+        return "Não encontrado", 404
     if using_object_storage():
         try:
             url = object_storage().generate_presigned_url(
                 "get_object",
-                Params={"Bucket": os.environ["CIAP_S3_BUCKET"], "Key": f"documentos/{filename}"},
+                Params={"Bucket": os.environ["CIAP_S3_BUCKET"], "Key": object_key},
                 ExpiresIn=300,
             )
         except Exception:
             app.logger.exception("Falha ao gerar URL privada do documento")
             return "Não encontrado", 404
         return redirect(url)
-    requested = (UPLOADS / filename).resolve()
+    requested = (UPLOADS / object_key.removeprefix("documentos/")).resolve()
     if UPLOADS not in requested.parents or not requested.is_file():
         return "Não encontrado", 404
     return send_file(requested, conditional=True)
