@@ -1857,15 +1857,11 @@ def termo(pid):
     connection.close()
     if not assistido:
         return "Não encontrado", 404
-    identity_fields = [
-        "nome", "nome_social", "cpf", "rg", "data_nascimento", "nome_mae",
-        "processo", "vara", "rji", "telefone",
-    ]
     return printable(
         "Termo de Atendimento",
         render_template(
             "termo.html", assistido=assistido, servidor=servidor,
-            identity_fields=identity_fields,
+            identity_fields=FIELDS,
         ),
         print_class="term-print-page",
     )
