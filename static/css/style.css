@@ -16,12 +16,17 @@
 .term-print-page .term-signature-block{margin-top:12px;padding:0 8px}
 .term-print-page .term-signature-block h2{margin:8px 0 5px}
 .term-print-page .term-signature-block p{line-height:1.35}
+.term-print-page .term-date{margin-bottom:30mm!important}
 .term-print-page .print-layout{display:table;width:100%;table-layout:fixed;overflow:visible;white-space:normal}
 .term-print-page .print-layout td{white-space:normal}
 .term-print-page .bloco-assinatura{display:grid!important;grid-template-columns:1fr 1fr!important;gap:30px!important;text-align:center!important;width:100%;min-width:0;margin-top:16px}
 .term-print-page .signature-box{min-height:84px;padding:9px 5px 0}
 .term-print-page .signature-box{min-width:0}
 .term-print-page .signature-line{height:12px;margin:0 0 5px;border-bottom:1px solid currentColor}
+.term-print-page .grid-assinaturas{display:grid!important;grid-template-columns:1fr 1fr!important;gap:40px!important;align-items:start!important;text-align:center!important;page-break-inside:avoid!important;break-inside:avoid!important;margin-top:0!important}
+.term-print-page .grid-assinaturas>.signature-box{width:100%!important;min-width:0;border:none!important;justify-content:flex-start!important;text-align:center!important}
+.term-print-page .linha-assinatura{border:none!important;border-top:1px solid #000!important;width:100%!important;margin-bottom:8px!important}
+.term-print-page .grid-assinaturas p{width:100%!important;margin:3px 0;text-align:center!important}
 @media print{
   html,body,main,.content,.container,.termo-wrapper{height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important}
   .no-print{display:none!important}
@@ -34,6 +39,10 @@
   .term-print-page .print-header img{max-height:45px;width:auto;object-fit:contain}
   .term-print-page .term-signature-block{margin-top:5px;padding:0 4px}
   .term-print-page .bloco-assinatura{display:grid!important;grid-template-columns:1fr 1fr!important;gap:30px!important;text-align:center!important;margin-top:4mm}
+  .term-print-page .grid-assinaturas{display:grid!important;grid-template-columns:1fr 1fr!important;gap:40px!important;align-items:start!important;text-align:center!important;page-break-inside:avoid!important;break-inside:avoid!important;margin-top:0!important}
+  .term-print-page .grid-assinaturas>.signature-box{border:none!important;justify-content:flex-start!important;text-align:center!important}
+  .term-print-page .linha-assinatura{border:none!important;border-top:1px solid #000!important;width:100%!important;margin-bottom:8px!important}
+  .term-print-page .grid-assinaturas p{width:100%!important;text-align:center!important}
   .term-print-page .signature-box{min-height:14mm;padding:1mm}
   .term-print-page .signature-line{font-size:11px}
 }

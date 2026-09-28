@@ -16,16 +16,16 @@
 <h2>Termo de Ciência e Compromisso</h2>
 <p>Declaro ter comparecido voluntariamente à CIAP e estar ciente das condições para o cumprimento da minha medida. Comprometo-me a manter meus dados atualizados e cumprir as determinações legais. Estou ciente de que o descumprimento será comunicado à Vara de Alternativas Penais.</p>
 <p class="term-date">Data: ____/______________/________.</p>
-	<div class="bloco-assinatura signature-row">
+	<div class="grid-assinaturas">
 	<div class="signature-box">
-		<div class="signature-line" aria-hidden="true"></div>
-		<span>Assinatura do(a) Assistido(a)</span>
+		<div class="linha-assinatura" aria-hidden="true"></div>
+		<p>Assinatura do(a) Assistido(a)</p>
 	</div>
 	<div class="signature-box">
-		<div class="signature-line" aria-hidden="true"></div>
-		<span>Assinatura do(a) Servidor(a) / Técnico(a)</span>
-		<strong>{{ servidor.nome if servidor and servidor.nome else '—' }}</strong>
-		<div class="signature-details"><div><span>Cargo:</span> {{ servidor.cargo if servidor and servidor.cargo else '—' }}</div></div>
+		<div class="linha-assinatura" aria-hidden="true"></div>
+		<p>Assinatura do(a) Servidor(a) / Técnico(a)</p>
+		<p>{{ servidor.nome if servidor and servidor.nome else '—' }}</p>
+		<p>Cargo: {{ servidor.cargo if servidor and servidor.cargo else '—' }}</p>
 	</div>
 </div>
 </section>
