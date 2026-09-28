@@ -18,11 +18,11 @@
 <p class="term-date">Data: ____/______________/________.</p>
 	<div class="bloco-assinatura signature-row">
 	<div class="signature-box">
-		<div class="signature-line">________________________________________</div>
+		<div class="signature-line" aria-hidden="true"></div>
 		<span>Assinatura do(a) Assistido(a)</span>
 	</div>
 	<div class="signature-box">
-		<div class="signature-line">________________________________________</div>
+		<div class="signature-line" aria-hidden="true"></div>
 		<span>Assinatura do(a) Servidor(a) / Técnico(a)</span>
 		<strong>{{ servidor.nome if servidor and servidor.nome else '—' }}</strong>
 		<div class="signature-details"><div><span>Cargo:</span> {{ servidor.cargo if servidor and servidor.cargo else '—' }}</div></div>

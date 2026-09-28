@@ -1,15 +1,15 @@
 @media screen{
-  html,body{height:auto;overflow:auto}
+  html:has(body.term-print-page),body.term-print-page,body.term-print-page main,body.term-print-page .content,body.term-print-page .container,body.term-print-page .termo-wrapper{height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important}
   .print-branding,.print-footer{display:none}
   .print-layout>thead,.print-layout>tfoot{display:none}
 }
 
 @media print{
   @page{size:A4 portrait;margin:12mm 15mm}
-  html,body{height:auto!important;min-height:0;overflow:visible!important}
+  html,body,main,.content,.container,.termo-wrapper{height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important}
   body{padding:0;background:#fff}
   body.print-page{margin:0;padding:0}
-  .print-layout{width:100%;border-collapse:collapse}
+  .print-layout{width:100%;table-layout:fixed;border-collapse:collapse}
   .print-layout>thead{display:table-header-group}
   .print-layout>tfoot{display:table-footer-group}
   .print-layout>thead>tr>td{height:32mm;padding:0 0 8mm;vertical-align:top}
@@ -30,7 +30,7 @@
 }
 
 @media screen{
-  body.term-print-page{margin:24px auto;padding:0;overflow:auto;height:auto}
+  body.term-print-page{margin:24px auto;padding:0;overflow:visible;height:auto}
   body.term-print-page .print-layout{max-width:820px;margin:0 auto}
   body.term-print-page h1{margin:0 0 12px;text-align:center;font-size:22px}
   body.term-print-page h2{margin:14px 0 7px;font-size:16px}
