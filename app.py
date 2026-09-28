@@ -1964,9 +1964,15 @@ def declaracao_comparecimento(pid):
     person = get_person(pid)
     if not person:
         return "Não encontrado", 404
+    connection = db()
+    servidor = connection.execute(
+        "SELECT nome, cargo FROM users WHERE id = ?", (session["uid"],)
+    ).fetchone()
+    connection.close()
     return printable(
         "Declaração de Comparecimento",
-        render_template("declaracao_comparecimento.html", person=person),
+        render_template("declaracao_comparecimento.html", person=person, servidor=servidor),
+        print_class="attendance-declaration-page",
     )
 
 

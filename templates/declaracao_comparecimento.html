@@ -17,10 +17,18 @@
                 <div class="declaration-field"><label for="arrival-time">Horário de chegada</label><input id="arrival-time" type="time"></div>
                 <div class="declaration-field"><label for="departure-time">Horário de saída</label><input id="departure-time" type="time"></div>
         </section>
-        <p>Por ser expressão da verdade, firmamos a presente declaração.</p>
-        <div class="signature-row">
-                <div class="signature-box"><span>Assinatura do Assistido(a)</span></div>
-                <div class="signature-box"><span>Assinatura do Servidor(a)</span><div class="signature-details"><div><span>Cargo:</span> ____________________________</div><div><span>Matrícula:</span> __________________</div></div></div>
+        <p class="declaration-statement">Por ser expressão da verdade, firmamos a presente declaração.</p>
+        <div class="grid-assinaturas">
+                <div class="signature-box">
+                        <div class="linha-assinatura" aria-hidden="true"></div>
+                        <p>Assinatura do(a) Assistido(a)</p>
+                </div>
+                <div class="signature-box">
+                        <div class="linha-assinatura" aria-hidden="true"></div>
+                        <p>Assinatura do(a) Servidor(a)</p>
+                        <p>{{ servidor.nome if servidor and servidor.nome else '—' }}</p>
+                        <p>Cargo: {{ servidor.cargo if servidor and servidor.cargo else '—' }}</p>
+                </div>
         </div>
 </main>
 <script>

@@ -61,3 +61,56 @@
   body.term-print-page .signature-details{gap:0;margin-top:1mm;font-size:11px}
   body.term-print-page .signature-details div:last-child{padding-left:0}
 }
+
+@media screen{
+  body.attendance-declaration-page{height:auto;min-height:0;margin:24px auto;padding:0;overflow:visible}
+  body.attendance-declaration-page .print-layout{max-width:820px;margin:0 auto}
+  body.attendance-declaration-page .attendance-declaration{max-width:none;min-height:0;display:block}
+  body.attendance-declaration-page .receipt-header{padding:0 0 8px}
+  body.attendance-declaration-page .receipt-institution{font-size:20px}
+  body.attendance-declaration-page .receipt-header h1{margin:4px 0 0;font-size:16px}
+  body.attendance-declaration-page .receipt-intro{margin:12px 0;text-align:left;font-size:12px}
+  body.attendance-declaration-page .receipt-section{margin-bottom:10px}
+  body.attendance-declaration-page .receipt-section h2{margin:8px 0 4px;padding-bottom:3px;font-size:12px}
+  body.attendance-declaration-page .print-row{grid-template-columns:120px 1fr;padding:3px 5px;font-size:12px}
+  body.attendance-declaration-page .declaration-field{display:grid;grid-template-columns:140px 1fr;align-items:center;margin:4px 0}
+  body.attendance-declaration-page .declaration-field input{width:100%;margin:0;padding:4px 6px;font-size:12px}
+  body.attendance-declaration-page .declaration-statement{margin:10px 0 20px;text-align:center;font-size:12px}
+  body.attendance-declaration-page .grid-assinaturas{display:grid!important;grid-template-columns:1fr 1fr!important;gap:40px!important;align-items:start!important;break-inside:avoid!important;page-break-inside:avoid!important}
+  body.attendance-declaration-page .grid-assinaturas>.signature-box{min-width:0;border:0;text-align:center}
+  body.attendance-declaration-page .linha-assinatura{border:0;border-top:1px solid #000;width:100%;margin-bottom:8px}
+  body.attendance-declaration-page .grid-assinaturas p{margin:3px 0;text-align:center}
+}
+
+@media print{
+  @page attendance-declaration{size:A4 portrait;margin:10mm 15mm}
+  html,body,main,.content,.container{height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important}
+  .no-print{display:none!important}
+  body.attendance-declaration-page{page:attendance-declaration;margin:0;padding:0;font-size:11px}
+  body.attendance-declaration-page .print-layout{display:table!important;width:100%;max-width:none;margin:0;table-layout:fixed;border-collapse:collapse;overflow:visible;white-space:normal}
+  body.attendance-declaration-page .print-layout>thead{display:table-header-group!important}
+  body.attendance-declaration-page .print-layout>tbody{display:table-row-group!important}
+  body.attendance-declaration-page .print-layout>tfoot{display:table-footer-group!important}
+  body.attendance-declaration-page .print-layout>thead>tr>td{height:20mm;padding:0 0 3mm;vertical-align:top}
+  body.attendance-declaration-page .print-layout>tfoot>tr>td{height:12mm;padding:3mm 0 0;vertical-align:bottom}
+  body.attendance-declaration-page .print-header{height:17mm;page-break-after:avoid}
+  body.attendance-declaration-page .print-logo-center{width:64mm}
+  body.attendance-declaration-page .print-logo-right{width:28mm}
+  body.attendance-declaration-page .print-footer,body.attendance-declaration-page .print-footer img{width:48mm;height:auto}
+  body.attendance-declaration-page .attendance-declaration{max-width:none;min-height:0;display:block;font-size:11px;line-height:1.2}
+  body.attendance-declaration-page .receipt-header{padding:0 0 1.5mm;border-bottom:1px solid #000}
+  body.attendance-declaration-page .receipt-institution{font-size:14px}
+  body.attendance-declaration-page .receipt-header h1{margin:1mm 0 0;font-size:12px}
+  body.attendance-declaration-page .receipt-intro{margin:2mm 0 3mm;text-align:center;font-size:11px;line-height:1.2}
+  body.attendance-declaration-page .receipt-section{margin:0 0 2mm;break-inside:avoid!important;page-break-inside:avoid!important}
+  body.attendance-declaration-page .receipt-section h2{margin:1.5mm 0 1mm;padding-bottom:.5mm;font-size:12px;line-height:1.2;break-after:avoid;page-break-after:avoid}
+  body.attendance-declaration-page .print-row{grid-template-columns:1fr 1.5fr;padding:.6mm 1.5mm;font-size:11px;line-height:1.15;break-inside:avoid!important;page-break-inside:avoid!important}
+  body.attendance-declaration-page .declaration-field{display:grid;grid-template-columns:40mm 1fr;align-items:center;margin:1mm 0;font-size:11px}
+  body.attendance-declaration-page .declaration-field label{font-size:11px}
+  body.attendance-declaration-page .declaration-field input{width:100%;height:auto;margin:0;padding:.5mm 1mm;border:0;border-bottom:1px solid #777;border-radius:0;background:transparent;font:11px Arial,sans-serif}
+  body.attendance-declaration-page .declaration-statement{margin:3mm 0 30mm;text-align:center;font-size:11px;line-height:1.2}
+  body.attendance-declaration-page .grid-assinaturas{display:grid!important;grid-template-columns:1fr 1fr!important;gap:40px!important;align-items:start!important;break-inside:avoid!important;page-break-inside:avoid!important}
+  body.attendance-declaration-page .grid-assinaturas>.signature-box{min-width:0;min-height:0;padding:0;border:0;text-align:center}
+  body.attendance-declaration-page .linha-assinatura{border:none!important;border-top:1px solid #000!important;width:100%!important;margin-bottom:8px!important}
+  body.attendance-declaration-page .grid-assinaturas p{margin:3px 0;font-size:11px;line-height:1.2;text-align:center!important}
+}
