@@ -666,12 +666,41 @@ def find_duplicate_person(connection, values, exclude_id=None):
                 return field.upper()
     return None
 
+def submitted_articles():
+    values = request.form.getlist("artigo") or request.form.getlist("artigo_capitulacao")
+    return [value.strip() for value in values if value.strip()]
+
+
+def parse_selected_articles(value):
+    if not value:
+        return []
+    if " | " in value:
+        return [article.strip() for article in value.split(" | ") if article.strip()]
+    if value in ARTICLE_OPTIONS:
+        return [value]
+
+    selected = []
+    remaining = value.strip()
+    while remaining:
+        matches = [
+            option for option in ARTICLE_OPTIONS
+            if remaining == option or remaining.startswith(f"{option}, ")
+        ]
+        if not matches:
+            return [value.strip()]
+        article = max(matches, key=len)
+        selected.append(article)
+        if remaining == article:
+            break
+        remaining = remaining[len(article) + 2:]
+    return selected
+
+
 def person_form_values():
     values = [request.form.get(field, "") for field in FIELDS]
 
     article_index = FIELDS.index("artigo")
-    article_values = [value.strip() for value in request.form.getlist("artigo") if value.strip()]
-    values[article_index] = " | ".join(article_values)
+    values[article_index] = " | ".join(submitted_articles())
 
     service_index = FIELDS.index("prestacao_servico_comunitario")
     location_index = FIELDS.index("local_prestacao_servico")
@@ -1298,7 +1327,10 @@ def nova():
         if duplicate:
             connection.close()
             flash(f"Cadastro duplicado: o identificador {duplicate} já pertence a outro assistido.")
-            return render_template("pessoa_form.html", title="Novo cadastro")
+            return render_template(
+                "pessoa_form.html", title="Novo cadastro",
+                artigos_selecionados=submitted_articles(),
+            )
         cursor = connection.execute(
             "INSERT INTO pessoas(criado_em, criado_por, %s) VALUES (?, ?, %s)" % (
                 ", ".join(FIELDS), ", ".join("?" for _ in FIELDS)
@@ -1323,7 +1355,9 @@ def nova():
         audit("Cadastro criado", "pessoa", person_id)
         flash("Cadastro salvo com sucesso.")
         return redirect(url_for("pessoa", pid=person_id))
-    return render_template("pessoa_form.html", title="Novo cadastro")
+    return render_template(
+        "pessoa_form.html", title="Novo cadastro", artigos_selecionados=[],
+    )
 @app.route("/pessoa/<int:pid>/editar", methods=["GET", "POST"])
 def editar_pessoa(pid):
     denial = admin_required()
@@ -1343,6 +1377,7 @@ def editar_pessoa(pid):
             return render_template(
                 "pessoa_form.html", title="Editar cadastro", person=person,
                 documents=document_entries(person["documentos"]),
+                artigos_selecionados=submitted_articles(),
             )
         connection.execute(
             "UPDATE pessoas SET %s WHERE id = ?" % ", ".join(f"{field} = ?" for field in FIELDS),
@@ -1369,6 +1404,7 @@ def editar_pessoa(pid):
     return render_template(
         "pessoa_form.html", title="Editar cadastro", person=person,
         documents=document_entries(person["documentos"]),
+        artigos_selecionados=parse_selected_articles(person["artigo"]),
     )
 
 

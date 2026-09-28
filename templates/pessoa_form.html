@@ -9,10 +9,9 @@
 			{% for field in fields %}
 			{% set current_value = person[field] if person else '' %}
 			{% if field == 'artigo' %}
-			{% set selected_articles = current_value.split(' | ') if current_value else [] %}
 			<label>{{ labels[field] }}
 				<select name="artigo" multiple size="6" aria-describedby="artigo-help">
-					{% for option in article_options %}<option value="{{ option }}" {% if option in selected_articles %}selected{% endif %}>{{ option }}</option>{% endfor %}
+					{% for option in article_options %}<option value="{{ option }}" {% if option in artigos_selecionados|default([]) %}selected{% endif %}>{{ option }}</option>{% endfor %}
 				</select>
 				<small id="artigo-help" class="field-help">Selecione um ou mais artigos.</small>
 			</label>
