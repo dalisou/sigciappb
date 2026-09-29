@@ -9,9 +9,10 @@ import sqlite3
 import hmac
 import unicodedata
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from email.message import EmailMessage
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from flask import (
     Flask,
@@ -318,6 +319,7 @@ MULTIDISCIPLINARY_PROFILES = {
 }
 ADMIN_PROFILE = "administrador"
 MONTH_DAY_OPTIONS = [(day, str(day)) for day in range(1, 32)]
+FORTALEZA_TIMEZONE = ZoneInfo("America/Fortaleza")
 
 
 def normalize_group_responsibility(value):
@@ -746,6 +748,21 @@ def audit_action_type(action, entity):
     if entity == "mensagem":
         return "Mensagem"
     return "Outra Ação"
+
+
+def format_audit_timestamp(value):
+    if not value:
+        return "—"
+    if isinstance(value, datetime):
+        timestamp = value
+    else:
+        try:
+            timestamp = datetime.fromisoformat(str(value).strip().replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return str(value)
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+    return timestamp.astimezone(FORTALEZA_TIMEZONE).strftime("%d/%m/%Y %H:%M:%S")
 
 
 def audit(action, entity, entity_id=None, *, assistido_id=None, assistido_nome=None,
@@ -1773,6 +1790,10 @@ def pessoa(pid):
         "ORDER BY COALESCE(a.data_hora, a.criado_em) DESC, a.id DESC",
         (pid, pid, pid),
     ).fetchall()
+    activity_history = [
+        {**dict(item), "data_hora_local": format_audit_timestamp(item["data_hora"] or item["criado_em"])}
+        for item in activity_history
+    ]
     missed_appointments = [appointment for appointment in appointments if appointment["status"] == "Faltou"]
     connection.close()
     if not person:
@@ -2615,6 +2636,10 @@ def auditoria():
         "LIMIT ? OFFSET ?",
         [*parameters, per_page, (page - 1) * per_page],
     ).fetchall()
+    rows = [
+        {**dict(row), "data_hora_local": format_audit_timestamp(row["data_hora"] or row["criado_em"])}
+        for row in rows
+    ]
     professionals = connection.execute(
         "SELECT DISTINCT a.usuario_id, COALESCE(a.usuario_nome, u.nome, 'Usuário removido') AS nome "
         "FROM auditoria a LEFT JOIN users u ON u.id = a.usuario_id "

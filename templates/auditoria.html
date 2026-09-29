@@ -17,7 +17,7 @@
 		<thead><tr><th>Data/hora</th><th>Responsável</th><th>Assistido</th><th>Ação</th><th>Detalhes</th></tr></thead>
 		<tbody>
 		{% for row in rows %}<tr>
-			<td>{{ row.data_hora or row.criado_em }}</td>
+			<td>{{ row.data_hora_local }}</td>
 			<td>{{ row.responsavel }}</td>
 			<td>{% if row.assistido_display %}{{ row.assistido_display }}{% if row.assistido_cpf %}<br><small>CPF: {{ row.assistido_cpf }}</small>{% endif %}{% else %}—{% endif %}</td>
 			<td>{{ row.tipo_acao or row.acao }}</td>

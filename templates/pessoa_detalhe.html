@@ -75,7 +75,7 @@
 	{% if activity_history %}<ol class="activity-history-list">
 		{% for item in activity_history %}<li>
 			<strong>{{ item.tipo_acao or item.acao }}</strong>
-			<span>{{ item.data_hora or item.criado_em }} · {{ item.usuario_nome_display or 'Usuário removido' }}</span>
+			<span>{{ item.data_hora_local }} · {{ item.usuario_nome_display or 'Usuário removido' }}</span>
 			<details><summary>Ver detalhes</summary><p>{{ item.descricao_detalhada or item.acao }}</p></details>
 		</li>{% endfor %}
 	</ol>{% else %}<p class="muted">Ainda não há atividades registradas para este assistido.</p>{% endif %}
