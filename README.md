@@ -9,7 +9,7 @@ Aplicação web Python/Flask para cadastro e acompanhamento de pessoas em cumpri
 - `static/css/style.css`: identidade visual e estilos responsivos.
 - `static/js/app.js`: ponto reservado para interações JavaScript.
 - `data/`: banco SQLite criado automaticamente em tempo de execução.
-- `documentos/`: armazenamento privado dos documentos enviados pelos usuários; o diretório pode ser movido com `CIAP_DOCUMENTS_DIR`.
+- `documentos/`: bucket privado do Supabase Storage usado para os documentos enviados pelos usuários.
 - `backup.py`: backup consistente do SQLite e dos documentos, com retenção configurável.
 - `requirements.txt`: dependências Python.
 
@@ -82,7 +82,7 @@ $env:CIAP_SMTP_FROM = "ciapcadastro@gmail.com"
 python app.py
 ```
 
-Para o Render com PostgreSQL e R2/S3, configure também `DATABASE_URL`, `CIAP_S3_BUCKET`, `CIAP_S3_ENDPOINT_URL`, `CIAP_S3_REGION`, `CIAP_S3_ACCESS_KEY_ID` e `CIAP_S3_SECRET_ACCESS_KEY`. O endpoint é obrigatório para R2; para AWS S3, deixe `CIAP_S3_ENDPOINT_URL` vazio. `CIAP_S3_SERVER_SIDE_ENCRYPTION` é opcional e pode ser `AES256` para AWS S3; no R2, deixe vazio. Mantenha `CIAP_AUTO_IMPORT=0` depois da migração.
+Para o Render, configure `DATABASE_URL`, `SUPABASE_URL` e `SUPABASE_KEY`. Crie no Supabase um bucket privado chamado `documentos`; os documentos são acessados somente após autenticação na aplicação, por URLs assinadas válidas por cinco minutos. Mantenha `CIAP_AUTO_IMPORT=0` depois da migração.
 
 O cadastro de novos usuários fica pendente até a aprovação na aba **Solicitações**. O envio de e-mails usa SMTP; para Gmail, gere uma senha de aplicativo e não use a senha normal da conta.
 

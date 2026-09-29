@@ -1,4 +1,4 @@
-"""Migrate the local CIAP SQLite database and documents to PostgreSQL/S3."""
+"""Migrate the local CIAP SQLite database and documents to PostgreSQL/Supabase."""
 import argparse
 import os
 import sqlite3
@@ -65,19 +65,17 @@ def main():
         target.close()
 
     if args.upload_documents:
-        if not os.environ.get("CIAP_S3_BUCKET"):
-            raise SystemExit("CIAP_S3_BUCKET é obrigatório para enviar documentos.")
-        storage = app.object_storage()
+        if app.supabase is None:
+            raise SystemExit("SUPABASE_URL e SUPABASE_KEY são obrigatórias para enviar documentos.")
+        storage = app.supabase_storage()
         count = 0
         for document in args.documents.rglob("*"):
             if document.is_file() and document.name != ".gitkeep":
                 with document.open("rb") as stream:
-                    extra_args = {}
-                    encryption = os.environ.get("CIAP_S3_SERVER_SIDE_ENCRYPTION", "")
-                    if encryption:
-                        extra_args["ServerSideEncryption"] = encryption
-                    storage.upload_fileobj(
-                        stream, os.environ["CIAP_S3_BUCKET"], f"documentos/{document.name}", ExtraArgs=extra_args
+                    storage.upload(
+                        path=document.name,
+                        file=stream.read(),
+                        file_options={"content-type": "application/octet-stream"},
                     )
                 count += 1
         print(f"documentos: {count} arquivos enviados")

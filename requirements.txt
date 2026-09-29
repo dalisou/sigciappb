@@ -11,4 +11,4 @@ pandas
 psycopg2-binary==2.9.10
 psycopg[binary]>=3.1.0
 Flask-SQLAlchemy
-boto3
+supabase

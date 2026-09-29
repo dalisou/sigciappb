@@ -27,6 +27,7 @@ from flask import (
     url_for,
 )
 from flask_sqlalchemy import SQLAlchemy
+from supabase import Client, create_client
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -39,11 +40,6 @@ except ImportError:
     IntegrityError = RuntimeError
     RealDictCursor = None
 
-try:
-    import boto3
-except ImportError:
-    boto3 = None
-
 # 1. Instância principal da aplicação
 app = Flask(__name__)
 IS_PRODUCTION = os.environ.get("CIAP_ENV", "").lower() == "production" or os.environ.get("FLASK_ENV", "").lower() == "production"
@@ -54,9 +50,7 @@ if IS_PRODUCTION and app.secret_key == "ciap-dev-secret-change-me":
 # 2. Definição dos diretórios locais e caminho do banco legado (DB)
 BASE = Path(__file__).parent
 DB = Path(os.environ.get("CIAP_DB_PATH", BASE / "data" / "ciap.db")).resolve()
-UPLOADS = Path(os.environ.get("CIAP_DOCUMENTS_DIR", BASE / "documentos")).resolve()
 
-UPLOADS.mkdir(parents=True, exist_ok=True)
 DB.parent.mkdir(parents=True, exist_ok=True)
 
 # 3. Configuração dinâmica do Banco de Dados (Render / SQLite Local)
@@ -67,6 +61,15 @@ if db_url.startswith("postgres://"):
 
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+supabase: Client | None = (
+    create_client(SUPABASE_URL, SUPABASE_KEY)
+    if SUPABASE_URL and SUPABASE_KEY
+    else None
+)
+BUCKET_NAME = "documentos"
 
 # 4. Configurações extras de segurança e upload
 app.config.update(
@@ -143,23 +146,10 @@ def postgres_url():
     return db_url.replace("postgresql+psycopg2://", "postgresql://", 1)
 
 
-def using_object_storage():
-    return bool(os.environ.get("CIAP_S3_BUCKET"))
-
-
-def object_storage():
-    if boto3 is None:
-        raise RuntimeError("boto3 é necessário quando CIAP_S3_BUCKET está configurado")
-    options = {
-        "service_name": "s3",
-        "endpoint_url": os.environ.get("CIAP_S3_ENDPOINT_URL") or None,
-        "region_name": os.environ.get("CIAP_S3_REGION", "auto"),
-    }
-    access_key = os.environ.get("CIAP_S3_ACCESS_KEY_ID")
-    secret_key = os.environ.get("CIAP_S3_SECRET_ACCESS_KEY")
-    if access_key and secret_key:
-        options.update(aws_access_key_id=access_key, aws_secret_access_key=secret_key)
-    return boto3.client(**options)
+def supabase_storage():
+    if supabase is None:
+        raise RuntimeError("SUPABASE_URL e SUPABASE_KEY devem ser configuradas")
+    return supabase.storage.from_(BUCKET_NAME)
 
 
 def document_object_key(filename):
@@ -171,34 +161,6 @@ def document_object_key(filename):
     return filename
 
 
-def storage_upload(stream, filename):
-    extra_args = {}
-    encryption = os.environ.get("CIAP_S3_SERVER_SIDE_ENCRYPTION", "")
-    if encryption:
-        extra_args["ServerSideEncryption"] = encryption
-    object_key = document_object_key(filename)
-    s3_client = object_storage()
-    bucket_name = os.environ["CIAP_S3_BUCKET"]
-    try:
-        upload_result = s3_client.upload_fileobj(
-            stream,
-            bucket_name,
-            Key=object_key,
-            ExtraArgs=extra_args,
-        )
-        app.logger.warning(
-            "R2 upload_fileobj concluído: bucket=%s key=%s retorno=%r",
-            bucket_name, object_key, upload_result,
-        )
-        head_result = s3_client.head_object(Bucket=bucket_name, Key=object_key)
-        app.logger.warning(
-            "R2 confirmou objeto gravado: bucket=%s key=%s ContentLength=%s ETag=%s",
-            bucket_name, object_key, head_result.get("ContentLength"), head_result.get("ETag"),
-        )
-        return upload_result
-    except Exception:
-        app.logger.exception("R2 rejeitou ou não confirmou upload: bucket=%s key=%s", bucket_name, object_key)
-        raise
 ADMIN_EMAIL = os.environ.get("CIAP_ADMIN_EMAIL", "admin@ciap.local")
 ADMIN_PASSWORD = os.environ.get("CIAP_ADMIN_PASSWORD", "admin123")
 if IS_PRODUCTION:
@@ -210,8 +172,8 @@ if IS_PRODUCTION:
         raise RuntimeError("Credenciais administrativas padrão não podem ser usadas em produção")
     if not using_postgres():
         raise RuntimeError("DATABASE_URL PostgreSQL deve ser configurada em produção")
-    if not using_object_storage():
-        raise RuntimeError("CIAP_S3_BUCKET deve ser configurado em produção")
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        raise RuntimeError("SUPABASE_URL e SUPABASE_KEY devem ser configuradas em produção")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PASSWORD_PATTERN = re.compile(r"^[A-Za-z0-9]{6,}$")
 
@@ -903,15 +865,13 @@ def save_document(uploaded, pessoa_id, categoria_id):
     filename_seguro = secure_filename(uploaded.filename or "")
     if not filename_seguro:
         raise ValueError("Nome de arquivo inválido")
-    object_key = f"{pessoa_id}_{categoria_id}_{uuid.uuid4().hex}_{filename_seguro}"
-    if using_object_storage():
-        storage_upload(uploaded.stream, object_key)
-    else:
-        target = (UPLOADS / object_key).resolve()
-        if UPLOADS not in target.parents:
-            raise ValueError("Nome de documento inválido")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        uploaded.save(target)
+    object_key = f"{pessoa_id}/{categoria_id}_{uuid.uuid4().hex}_{filename_seguro}"
+    file_bytes = uploaded.read()
+    supabase_storage().upload(
+        path=object_key,
+        file=file_bytes,
+        file_options={"content-type": uploaded.content_type or "application/octet-stream"},
+    )
     return object_key
 
 
@@ -928,7 +888,7 @@ def document_entries(documentos):
                 entries.append({
                     "label": label.strip(),
                     "filename": object_key,
-                    "display_name": object_key.removeprefix("documentos/"),
+                    "display_name": object_key.rsplit("/", 1)[-1],
                 })
     return entries
 
@@ -964,13 +924,7 @@ def remove_document_reference(documentos, filename):
 
 def delete_document(filename):
     object_key = document_object_key(filename)
-    if using_object_storage():
-        object_storage().delete_object(Bucket=os.environ["CIAP_S3_BUCKET"], Key=object_key)
-        return
-    requested = (UPLOADS / object_key.removeprefix("documentos/")).resolve()
-    if UPLOADS not in requested.parents or not requested.is_file():
-        raise FileNotFoundError(filename)
-    requested.unlink()
+    supabase_storage().remove([object_key])
 
 
 @app.before_request
@@ -2078,52 +2032,23 @@ def documento(filename):
         object_key = document_object_key(filename)
     except ValueError:
         return "Não encontrado", 404
-    if using_object_storage():
-        try:
-            s3_client = object_storage()
-            bucket_name = os.environ["CIAP_S3_BUCKET"]
-            head_result = s3_client.head_object(Bucket=bucket_name, Key=object_key)
-            app.logger.warning(
-                "R2 objeto disponível para leitura: bucket=%s key=%s ContentLength=%s ETag=%s",
-                bucket_name, object_key, head_result.get("ContentLength"), head_result.get("ETag"),
-            )
-            url = s3_client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": bucket_name, "Key": object_key},
-                ExpiresIn=300,
-            )
-            app.logger.warning("R2 presigned URL gerada: bucket=%s key=%s", bucket_name, object_key)
-        except Exception as error:
-            error_response = getattr(error, "response", {}) or {}
-            error_code = str(error_response.get("Error", {}).get("Code", ""))
-            status_code = error_response.get("ResponseMetadata", {}).get("HTTPStatusCode")
-            if error_code in {"404", "NoSuchKey", "NotFound"} or status_code == 404:
-                person_id = document_owner_id(object_key)
-                flash(
-                    "O arquivo físico deste documento não foi localizado no servidor. "
-                    "Por favor, exclua o registro e faça o re-upload.",
-                    "warning",
-                )
-                if person_id:
-                    return redirect(url_for("pessoa", pid=person_id))
-                return redirect(url_for("pessoas"))
-            app.logger.exception("Falha ao verificar ou gerar URL privada do documento")
-            return "Não foi possível acessar o documento no armazenamento.", 502
-        return redirect(url)
-    requested = (UPLOADS / object_key.removeprefix("documentos/")).resolve()
-    if UPLOADS not in requested.parents:
-        return "Não encontrado", 404
-    if not requested.is_file():
+    try:
+        response = supabase_storage().create_signed_url(object_key, 300)
+        signed_url = response.get("signedUrl") or response.get("signedURL")
+        if not signed_url:
+            raise RuntimeError("Supabase não retornou uma URL assinada")
+    except Exception:
+        app.logger.exception("Falha ao gerar URL assinada para o documento %s", object_key)
         person_id = document_owner_id(object_key)
         flash(
-            "O arquivo físico deste documento não foi localizado no servidor. "
+            "O arquivo físico não foi encontrado no servidor. "
             "Por favor, exclua o registro e faça o re-upload.",
             "warning",
         )
         if person_id:
             return redirect(url_for("pessoa", pid=person_id))
         return redirect(url_for("pessoas"))
-    return send_file(requested, conditional=True)
+    return redirect(signed_url)
 
 
 @app.route("/pessoa/<int:pid>/atendimento", methods=["GET", "POST"])

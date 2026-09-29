@@ -17,15 +17,9 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
-      - key: CIAP_S3_BUCKET
+      - key: SUPABASE_URL
         sync: false
-      - key: CIAP_S3_ENDPOINT_URL
-        sync: false
-      - key: CIAP_S3_REGION
-        value: auto
-      - key: CIAP_S3_ACCESS_KEY_ID
-        sync: false
-      - key: CIAP_S3_SECRET_ACCESS_KEY
+      - key: SUPABASE_KEY
         sync: false
       - key: CIAP_ENV
         value: production
