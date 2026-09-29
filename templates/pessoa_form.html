@@ -66,9 +66,9 @@
 		<p class="muted">Selecione um ou mais arquivos por categoria. Os arquivos serão acrescentados ao cadastro.</p>
 		<div class="document-upload-list">
 			{% for document in docs %}
-			<div class="document-upload-row">
+			<div class="document-upload-row" data-category-id="{{ loop.index0 }}">
 				<label>{{ loop.index }}. {{ document }}
-					<input type="file" name="doc_{{ loop.index0 }}" multiple>
+					<input type="file" name="doc_{{ loop.index0 }}" data-category-id="{{ loop.index0 }}" multiple>
 				</label>
 				<div class="document-existing-links">
 					{% for existing in documents|selectattr('label', 'equalto', document)|list %}<a href="{{ url_for('documento', filename=existing.filename) }}" target="_blank" rel="noopener">Visualizar/download: {{ existing.display_name }}</a>{% else %}<span class="muted">Nenhum arquivo enviado</span>{% endfor %}

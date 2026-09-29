@@ -8,6 +8,7 @@ import smtplib
 import sqlite3
 import hmac
 import unicodedata
+import uuid
 from datetime import date, datetime, timedelta
 from email.message import EmailMessage
 from pathlib import Path
@@ -162,13 +163,11 @@ def object_storage():
 
 def document_object_key(filename):
     filename = (filename or "").strip().replace("\\", "/")
-    while filename.startswith("documentos/"):
-        filename = filename[len("documentos/"):]
     if not filename or filename.startswith("/") or any(
         part in {"", ".", ".."} for part in filename.split("/")
     ):
         raise ValueError("Nome de documento inválido")
-    return f"documentos/{filename}"
+    return filename
 
 
 def storage_upload(stream, filename):
@@ -176,12 +175,29 @@ def storage_upload(stream, filename):
     encryption = os.environ.get("CIAP_S3_SERVER_SIDE_ENCRYPTION", "")
     if encryption:
         extra_args["ServerSideEncryption"] = encryption
-    object_storage().upload_fileobj(
-        stream,
-        os.environ["CIAP_S3_BUCKET"],
-        document_object_key(filename),
-        ExtraArgs=extra_args,
-    )
+    object_key = document_object_key(filename)
+    s3_client = object_storage()
+    bucket_name = os.environ["CIAP_S3_BUCKET"]
+    try:
+        upload_result = s3_client.upload_fileobj(
+            stream,
+            bucket_name,
+            Key=object_key,
+            ExtraArgs=extra_args,
+        )
+        app.logger.warning(
+            "R2 upload_fileobj concluído: bucket=%s key=%s retorno=%r",
+            bucket_name, object_key, upload_result,
+        )
+        head_result = s3_client.head_object(Bucket=bucket_name, Key=object_key)
+        app.logger.warning(
+            "R2 confirmou objeto gravado: bucket=%s key=%s ContentLength=%s ETag=%s",
+            bucket_name, object_key, head_result.get("ContentLength"), head_result.get("ETag"),
+        )
+        return upload_result
+    except Exception:
+        app.logger.exception("R2 rejeitou ou não confirmou upload: bucket=%s key=%s", bucket_name, object_key)
+        raise
 ADMIN_EMAIL = os.environ.get("CIAP_ADMIN_EMAIL", "admin@ciap.local")
 ADMIN_PASSWORD = os.environ.get("CIAP_ADMIN_PASSWORD", "admin123")
 if IS_PRODUCTION:
@@ -866,24 +882,20 @@ def person_form_values():
     return values
 
 
-def upload_filename(person_id, document_index, original_name):
-    safe_name = secure_filename(original_name)
-    if not safe_name:
+def save_document(uploaded, pessoa_id, categoria_id):
+    filename_seguro = secure_filename(uploaded.filename or "")
+    if not filename_seguro:
         raise ValueError("Nome de arquivo inválido")
-    return f"{person_id}_{document_index}_{secrets.token_hex(8)}_{safe_name}"
-
-
-def save_document(uploaded, filename):
-    object_key = document_object_key(filename)
+    object_key = f"{pessoa_id}_{categoria_id}_{uuid.uuid4().hex}_{filename_seguro}"
     if using_object_storage():
         storage_upload(uploaded.stream, object_key)
     else:
-        relative_path = object_key.removeprefix("documentos/")
-        target = (UPLOADS / relative_path).resolve()
+        target = (UPLOADS / object_key).resolve()
         if UPLOADS not in target.parents:
             raise ValueError("Nome de documento inválido")
         target.parent.mkdir(parents=True, exist_ok=True)
         uploaded.save(target)
+    return object_key
 
 
 def document_entries(documentos):
@@ -1548,8 +1560,7 @@ def nova():
             names = []
             for uploaded in request.files.getlist(f"doc_{index}"):
                 if uploaded and uploaded.filename:
-                    object_key = document_object_key(upload_filename(person_id, index, uploaded.filename))
-                    save_document(uploaded, object_key)
+                    object_key = save_document(uploaded, person_id, index)
                     names.append(object_key)
                     uploaded_count += 1
             if names:
@@ -1605,8 +1616,7 @@ def editar_pessoa(pid):
             names = []
             for uploaded in request.files.getlist(f"doc_{index}"):
                 if uploaded and uploaded.filename:
-                    object_key = document_object_key(upload_filename(pid, index, uploaded.filename))
-                    save_document(uploaded, object_key)
+                    object_key = save_document(uploaded, pid, index)
                     names.append(object_key)
                     uploaded_count += 1
             if names:
@@ -2049,13 +2059,19 @@ def documento(filename):
         return "Não encontrado", 404
     if using_object_storage():
         try:
-            storage = object_storage()
-            storage.head_object(Bucket=os.environ["CIAP_S3_BUCKET"], Key=object_key)
-            url = storage.generate_presigned_url(
+            s3_client = object_storage()
+            bucket_name = os.environ["CIAP_S3_BUCKET"]
+            head_result = s3_client.head_object(Bucket=bucket_name, Key=object_key)
+            app.logger.warning(
+                "R2 objeto disponível para leitura: bucket=%s key=%s ContentLength=%s ETag=%s",
+                bucket_name, object_key, head_result.get("ContentLength"), head_result.get("ETag"),
+            )
+            url = s3_client.generate_presigned_url(
                 "get_object",
-                Params={"Bucket": os.environ["CIAP_S3_BUCKET"], "Key": object_key},
+                Params={"Bucket": bucket_name, "Key": object_key},
                 ExpiresIn=300,
             )
+            app.logger.warning("R2 presigned URL gerada: bucket=%s key=%s", bucket_name, object_key)
         except Exception as error:
             error_response = getattr(error, "response", {}) or {}
             error_code = str(error_response.get("Error", {}).get("Code", ""))
