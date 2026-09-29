@@ -1,1 +1,33 @@
-{% extends 'base.html' %}{% block content %}<h1>Auditoria de Ações</h1><div class="card"><table><tr><th>Data</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>ID</th></tr>{% for row in rows %}<tr><td>{{ row.criado_em }}</td><td>{{ row.usuario }}</td><td>{{ row.acao }}</td><td>{{ row.entidade }}</td><td>{{ row.entidade_id }}</td></tr>{% endfor %}</table></div>{% endblock %}
+{% extends 'base.html' %}
+{% block content %}
+<h1>Auditoria de Ações</h1>
+<div class="card">
+	<form method="get" class="grid">
+		<label>Servidor/Profissional<select name="usuario"><option value="">Todos</option>{% for professional in professionals %}<option value="{{ professional.usuario_id }}" {% if filters.usuario == professional.usuario_id|string %}selected{% endif %}>{{ professional.nome }}</option>{% endfor %}</select></label>
+		<label>Tipo de ação<select name="tipo_acao"><option value="">Todas</option>{% for item in action_types %}<option value="{{ item.tipo_acao }}" {% if filters.tipo_acao == item.tipo_acao %}selected{% endif %}>{{ item.tipo_acao }}</option>{% endfor %}</select></label>
+		<label>Assistido (nome ou CPF)<input name="assistido" value="{{ filters.assistido }}" autocomplete="off"></label>
+		<label>Data inicial<input type="date" name="data_inicial" value="{{ filters.data_inicial }}"></label>
+		<label>Data final<input type="date" name="data_final" value="{{ filters.data_final }}"></label>
+		<div class="actions"><button type="submit">Filtrar</button><a class="btn alt" href="{{ url_for('auditoria') }}">Limpar</a></div>
+	</form>
+</div>
+<div class="card">
+	<p class="muted">{{ total }} registro(s) · Página {{ page }} de {{ page_count }}</p>
+	<div class="table-scroll"><table>
+		<thead><tr><th>Data/hora</th><th>Responsável</th><th>Assistido</th><th>Ação</th><th>Detalhes</th></tr></thead>
+		<tbody>
+		{% for row in rows %}<tr>
+			<td>{{ row.data_hora or row.criado_em }}</td>
+			<td>{{ row.responsavel }}</td>
+			<td>{% if row.assistido_display %}{{ row.assistido_display }}{% if row.assistido_cpf %}<br><small>CPF: {{ row.assistido_cpf }}</small>{% endif %}{% else %}—{% endif %}</td>
+			<td>{{ row.tipo_acao or row.acao }}</td>
+			<td><details><summary>Ver detalhes</summary><p>{{ row.descricao_detalhada or row.acao }}</p><small>{{ row.entidade }}{% if row.entidade_id %} · ID {{ row.entidade_id }}{% endif %}</small></details></td>
+		</tr>{% else %}<tr><td colspan="5">Nenhum registro corresponde aos filtros.</td></tr>{% endfor %}
+		</tbody>
+	</table></div>
+	{% if page_count > 1 %}<nav class="actions" aria-label="Paginação da auditoria">
+		{% if page > 1 %}<a class="btn alt" href="{{ url_for('auditoria', pagina=page - 1, usuario=filters.usuario, tipo_acao=filters.tipo_acao, assistido=filters.assistido, data_inicial=filters.data_inicial, data_final=filters.data_final) }}">Anterior</a>{% endif %}
+		{% if page < page_count %}<a class="btn alt" href="{{ url_for('auditoria', pagina=page + 1, usuario=filters.usuario, tipo_acao=filters.tipo_acao, assistido=filters.assistido, data_inicial=filters.data_inicial, data_final=filters.data_final) }}">Próxima</a>{% endif %}
+	</nav>{% endif %}
+</div>
+{% endblock %}

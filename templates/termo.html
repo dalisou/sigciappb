@@ -25,7 +25,8 @@
 		<div class="linha-assinatura" aria-hidden="true"></div>
 		<p>Assinatura do(a) Servidor(a) / Técnico(a)</p>
 		<p>{{ servidor.nome if servidor and servidor.nome else '—' }}</p>
-		<p>Cargo: {{ servidor.cargo if servidor and servidor.cargo else '—' }}</p>
+		<p>{{ servidor.cargo or '—' }} | Matrícula: {{ servidor.matricula or '—' }}</p>
+		{% if servidor.conselho_regional %}<p>{{ servidor.conselho_regional }}</p>{% endif %}
 	</div>
 </div>
 </section>

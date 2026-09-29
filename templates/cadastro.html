@@ -6,6 +6,9 @@
 	<form method="post">
 		<label>Nome completo<input name="nome" required autocomplete="name"></label>
 		<label>E-mail<input name="email" type="email" required autocomplete="email"></label>
+		<label>Cargo<input name="cargo" maxlength="120" autocomplete="organization-title"></label>
+		<label>Matrícula<input name="matricula" maxlength="80"></label>
+		<label>Conselho Regional (CRP, CRESS, OAB)<input name="conselho_regional" maxlength="120"></label>
 		<label>Senha<input name="senha" type="password" minlength="6" pattern="[A-Za-z0-9]{6,}" required autocomplete="new-password"><small>Use no mínimo 6 caracteres, somente letras e números.</small></label>
 		<label>Confirmar senha<input name="confirmacao" type="password" minlength="6" pattern="[A-Za-z0-9]{6,}" required autocomplete="new-password"></label>
 		<div class="actions"><button>Enviar solicitação</button><a class="btn alt" href="{{ url_for('login') }}">Voltar ao login</a></div>

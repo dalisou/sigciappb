@@ -6,6 +6,9 @@
 		<div class="grid">
 			<label>Nome<input name="nome" value="{{ user.nome }}" required></label>
 			<label>E-mail<input name="email" type="email" value="{{ user.email }}" required></label>
+			<label>Cargo<input name="cargo" value="{{ user.cargo or '' }}" maxlength="120"></label>
+			<label>Matrícula<input name="matricula" value="{{ user.matricula or '' }}" maxlength="80"></label>
+			<label id="conselho-regional-field">Conselho Regional (CRP, CRESS, OAB)<input name="conselho_regional" value="{{ user.conselho_regional or '' }}" maxlength="120"></label>
 			<label>Perfil<select name="perfil" required>
 				<option value="administrador" {% if user.perfil == 'administrador' %}selected{% endif %}>Administrador</option>
 				<option value="profissional_psicologo" {% if user.perfil == 'profissional_psicologo' %}selected{% endif %}>Profissional Psicólogo</option>
@@ -19,4 +22,19 @@
 		<div class="actions"><button>Salvar alterações</button><a class="btn alt" href="{{ url_for('perfis') }}">Cancelar</a></div>
 	</form>
 </div>
+<script>
+	const profileSelect = document.querySelector('select[name="perfil"]');
+	const regionalCouncilField = document.querySelector('#conselho-regional-field');
+	const multidisciplinaryProfiles = new Set([
+		'profissional_psicologo',
+		'profissional_assistente_social',
+		'profissional_advogado',
+	]);
+	const updateRegionalCouncilField = () => {
+		const enabled = multidisciplinaryProfiles.has(profileSelect?.value);
+		if (regionalCouncilField) regionalCouncilField.hidden = !enabled;
+	};
+	profileSelect?.addEventListener('change', updateRegionalCouncilField);
+	updateRegionalCouncilField();
+</script>
 {% endblock %}
