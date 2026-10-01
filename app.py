@@ -1488,7 +1488,7 @@ def pessoas():
         parameters = []
         for token in tokens:
             term = f"%{token}%"
-            conditions.append("extensions.unaccent(COALESCE(nome, '')) ILIKE extensions.unaccent(%s)")
+            conditions.append("public.unaccent(COALESCE(nome, '')) ILIKE public.unaccent(CAST(%s AS text))")
             parameters.append(term)
         conditions = ["(" + " AND ".join(conditions) + ")"]
         clean_query = re.sub(r"[./-]", "", query)
