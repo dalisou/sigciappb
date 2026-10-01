@@ -1484,23 +1484,20 @@ def pessoas():
     tokens = query.split()
     if using_postgres() and tokens:
         # O nome usa unaccent tokenizado; CPF/processo são comparados sem máscara.
-        placeholder = "%s" if using_postgres() else "?"
-        name_conditions = []
+        conditions = []
         parameters = []
         for token in tokens:
             term = f"%{token}%"
-            name_conditions.append(
-                f"public.unaccent(COALESCE(nome, '')) ILIKE public.unaccent({placeholder})"
-            )
+            conditions.append("extensions.unaccent(COALESCE(nome, '')) ILIKE extensions.unaccent(%s)")
             parameters.append(term)
-        conditions = ["(" + " AND ".join(name_conditions) + ")"]
+        conditions = ["(" + " AND ".join(conditions) + ")"]
         clean_query = re.sub(r"[./-]", "", query)
         if clean_query:
             conditions.append(
                 "(regexp_replace(COALESCE(cpf, ''), '[./-]', '', 'g') ILIKE "
-                + placeholder
+                + "%s"
                 + " OR regexp_replace(COALESCE(processo, ''), '[./-]', '', 'g') ILIKE "
-                + placeholder
+                + "%s"
                 + ")"
             )
             parameters.extend((f"%{clean_query}%", f"%{clean_query}%"))
