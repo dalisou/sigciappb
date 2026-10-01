@@ -27,6 +27,7 @@ from flask import (
     url_for,
 )
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import MetaData, Table, func, or_, select
 from supabase import Client, create_client
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -93,7 +94,7 @@ def logo(filename):
     return send_file(BASE / selected_file, mimetype="image/jpeg")
 
 # 5. Inicialização do SQLAlchemy com o app já configurado
-db = SQLAlchemy(app)
+sqlalchemy_db = SQLAlchemy(app)
 
 
 class PostgresCursor:
@@ -1491,21 +1492,23 @@ def pessoas():
     connection = db()
     tokens = query.split()
     if using_postgres() and tokens:
-        # No PostgreSQL, ILIKE ignora caixa e unaccent ignora diferenças de acentuação.
-        name_conditions = ["public.unaccent(COALESCE(nome, '')) ILIKE public.unaccent(%s::text)" for _ in tokens]
-        conditions = ["(" + " AND ".join(name_conditions) + ")"]
-        parameters = [f"%{token}%" for token in tokens]
-        clean_query = re.sub(r"[./-]", "", query)
-        if clean_query:
-            conditions.extend([
-                "regexp_replace(COALESCE(cpf, ''), '[./-]', '', 'g') ILIKE ?",
-                "regexp_replace(COALESCE(processo, ''), '[./-]', '', 'g') ILIKE ?",
-            ])
-            parameters.extend((f"%{clean_query}%", f"%{clean_query}%"))
-        people = connection.execute(
-            "SELECT * FROM pessoas WHERE (" + " OR ".join(conditions) + ") ORDER BY nome",
-            tuple(parameters),
-        ).fetchall()
+        # SQLAlchemy aplica busca sem acentos no nome e ILIKE nos identificadores.
+        people_table = Table("pessoas", MetaData(), autoload_with=sqlalchemy_db.engine)
+        statement = select(people_table)
+        for token in tokens:
+            term = f"%{token}%"
+            clean_term = re.sub(r"[./-]", "", token)
+            matches = [
+                func.public.unaccent(people_table.c.nome).ilike(func.public.unaccent(term))
+            ]
+            if clean_term:
+                cpf = func.regexp_replace(func.coalesce(people_table.c.cpf, ""), "[./-]", "", "g")
+                process = func.regexp_replace(func.coalesce(people_table.c.processo, ""), "[./-]", "", "g")
+                matches.extend((cpf.ilike(f"%{clean_term}%"), process.ilike(f"%{clean_term}%")))
+            statement = statement.where(or_(*matches))
+        people = sqlalchemy_db.session.execute(
+            statement.order_by(people_table.c.nome)
+        ).mappings().all()
     else:
         people = connection.execute("SELECT * FROM pessoas ORDER BY nome").fetchall()
         if tokens:
