@@ -1486,13 +1486,42 @@ def marcar_mensagem_lida(message_id):
 def pessoas():
     if not authenticated():
         return redirect(url_for("login"))
-    query = request.args.get("q", "")
+    query = request.args.get("q", "").strip()
     group = request.args.get("grupo", "")
     connection = db()
-    people = connection.execute(
-        "SELECT * FROM pessoas WHERE (nome LIKE ? OR cpf LIKE ? OR processo LIKE ?) ORDER BY nome",
-        (f"%{query}%", f"%{query}%", f"%{query}%"),
-    ).fetchall()
+    tokens = query.split()
+    if using_postgres() and tokens:
+        # No PostgreSQL, ILIKE ignora caixa e unaccent ignora diferenças de acentuação.
+        name_conditions = ["unaccent(COALESCE(nome, '')) ILIKE unaccent(?)" for _ in tokens]
+        conditions = ["(" + " AND ".join(name_conditions) + ")"]
+        parameters = [f"%{token}%" for token in tokens]
+        clean_query = re.sub(r"[./-]", "", query)
+        if clean_query:
+            conditions.extend([
+                "regexp_replace(COALESCE(cpf, ''), '[./-]', '', 'g') ILIKE ?",
+                "regexp_replace(COALESCE(processo, ''), '[./-]', '', 'g') ILIKE ?",
+            ])
+            parameters.extend((f"%{clean_query}%", f"%{clean_query}%"))
+        people = connection.execute(
+            "SELECT * FROM pessoas WHERE (" + " OR ".join(conditions) + ") ORDER BY nome",
+            tuple(parameters),
+        ).fetchall()
+    else:
+        people = connection.execute("SELECT * FROM pessoas ORDER BY nome").fetchall()
+        if tokens:
+            # O SQLite não possui unaccent nativo; NFKD remove acentos para a busca local.
+            def search_key(value):
+                normalized = unicodedata.normalize("NFKD", (value or "").casefold())
+                return "".join(character for character in normalized if not unicodedata.combining(character))
+
+            normalized_tokens = [search_key(token) for token in tokens]
+            clean_query = re.sub(r"[./-]", "", search_key(query))
+            people = [
+                person for person in people
+                if all(token in search_key(person["nome"]) for token in normalized_tokens)
+                or (clean_query and clean_query in re.sub(r"[./-]", "", search_key(person["cpf"])))
+                or (clean_query and clean_query in re.sub(r"[./-]", "", search_key(person["processo"])))
+            ]
     people = [dict(person, grupo_responsabilizacao=normalize_group_responsibility(person["grupo_responsabilizacao"])) for person in people]
     if group:
         people = [person for person in people if group_responsibility_key(person["grupo_responsabilizacao"]) == group]
