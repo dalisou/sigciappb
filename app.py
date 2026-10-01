@@ -1492,7 +1492,7 @@ def pessoas():
     tokens = query.split()
     if using_postgres() and tokens:
         # No PostgreSQL, ILIKE ignora caixa e unaccent ignora diferenças de acentuação.
-        name_conditions = ["public.unaccent(COALESCE(nome, '')) ILIKE public.unaccent(?)" for _ in tokens]
+        name_conditions = ["public.unaccent(COALESCE(nome, '')) ILIKE public.unaccent(%s::text)" for _ in tokens]
         conditions = ["(" + " AND ".join(name_conditions) + ")"]
         parameters = [f"%{token}%" for token in tokens]
         clean_query = re.sub(r"[./-]", "", query)
