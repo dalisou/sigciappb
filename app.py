@@ -26,8 +26,6 @@ from flask import (
     session,
     url_for,
 )
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import MetaData, Table, func, or_, select
 from supabase import Client, create_client
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -60,9 +58,6 @@ db_url = os.getenv("DATABASE_URL", f"sqlite:///{DB}")
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-app.config["SQLALCHEMY_DATABASE_URI"] = db_url
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase: Client | None = (
@@ -92,10 +87,6 @@ def logo(filename):
     if not selected_file:
         return "Não encontrado", 404
     return send_file(BASE / selected_file, mimetype="image/jpeg")
-
-# 5. Inicialização do SQLAlchemy com o app já configurado
-sqlalchemy_db = SQLAlchemy(app)
-
 
 class PostgresCursor:
     def __init__(self, cursor):
@@ -1492,23 +1483,29 @@ def pessoas():
     connection = db()
     tokens = query.split()
     if using_postgres() and tokens:
-        # SQLAlchemy aplica busca sem acentos no nome e ILIKE nos identificadores.
-        people_table = Table("pessoas", MetaData(), autoload_with=sqlalchemy_db.engine)
-        statement = select(people_table)
+        # O nome usa unaccent tokenizado; CPF/processo são comparados sem máscara.
+        placeholder = "%s" if using_postgres() else "?"
+        name_conditions = []
+        parameters = []
         for token in tokens:
             term = f"%{token}%"
-            clean_term = re.sub(r"[./-]", "", token)
-            matches = [
-                func.public.unaccent(people_table.c.nome).ilike(func.public.unaccent(term))
-            ]
-            if clean_term:
-                cpf = func.regexp_replace(func.coalesce(people_table.c.cpf, ""), "[./-]", "", "g")
-                process = func.regexp_replace(func.coalesce(people_table.c.processo, ""), "[./-]", "", "g")
-                matches.extend((cpf.ilike(f"%{clean_term}%"), process.ilike(f"%{clean_term}%")))
-            statement = statement.where(or_(*matches))
-        people = sqlalchemy_db.session.execute(
-            statement.order_by(people_table.c.nome)
-        ).mappings().all()
+            name_conditions.append(
+                f"public.unaccent(COALESCE(nome, '')) ILIKE public.unaccent({placeholder})"
+            )
+            parameters.append(term)
+        conditions = ["(" + " AND ".join(name_conditions) + ")"]
+        clean_query = re.sub(r"[./-]", "", query)
+        if clean_query:
+            conditions.append(
+                "(regexp_replace(COALESCE(cpf, ''), '[./-]', '', 'g') ILIKE "
+                + placeholder
+                + " OR regexp_replace(COALESCE(processo, ''), '[./-]', '', 'g') ILIKE "
+                + placeholder
+                + ")"
+            )
+            parameters.extend((f"%{clean_query}%", f"%{clean_query}%"))
+        query_sql = "SELECT * FROM pessoas WHERE (" + " OR ".join(conditions) + ") ORDER BY nome"
+        people = connection.execute(query_sql, tuple(parameters)).fetchall()
     else:
         people = connection.execute("SELECT * FROM pessoas ORDER BY nome").fetchall()
         if tokens:
