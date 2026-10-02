@@ -287,6 +287,11 @@ PROFESSIONAL_OPTIONS = [
     ("profissional_advogado", "Profissional Advogado"),
     ("profissional_administrativo", "Profissional Administrativo"),
 ]
+PROFESSIONAL_COUNCIL_PREFIXES = {
+    "profissional_psicologo": "CRP",
+    "profissional_assistente_social": "CRESS",
+    "profissional_advogado": "OAB",
+}
 PROFESSIONAL_KEYS = {value for value, _ in PROFESSIONAL_OPTIONS}
 MULTIDISCIPLINARY_PROFILES = {
     "profissional_psicologo",
@@ -2110,6 +2115,21 @@ def documento(filename):
     return redirect(signed_url)
 
 
+def attendance_professional_details(user):
+    if not user:
+        return "", False
+    profile = user["perfil"] or ""
+    name = (user["nome"] or "").strip()
+    cargo = (user["cargo"] or perfil_nome(profile)).strip()
+    council = (user["conselho_regional"] or "").strip()
+    council_prefix = PROFESSIONAL_COUNCIL_PREFIXES.get(profile, "")
+    if council and council_prefix and not re.search(r"\b(?:CRP|CRESS|OAB)\b", council, re.IGNORECASE):
+        council = f"{council_prefix} {council}"
+    return ", ".join(part for part in (name, cargo, council) if part), bool(
+        name and cargo and council and re.search(r"\d", council)
+    )
+
+
 def attendance_form_values(form):
     values = {field: form.get(field, "").strip() for field in ATTENDANCE_FIELDS}
     values["data"] = values["data_atendimento"]
@@ -2185,11 +2205,43 @@ def novo_atendimento(pid):
         return redirect(url_for("login"))
     connection = db()
     person = connection.execute("SELECT id, nome, processo, medida FROM pessoas WHERE id = ?", (pid,)).fetchone()
+    professional_user = connection.execute(
+        "SELECT nome, cargo, perfil, conselho_regional FROM users WHERE id = ?", (session["uid"],)
+    ).fetchone()
+    professional_label, has_professional_details = attendance_professional_details(professional_user)
     if not person:
         connection.close()
         return "Assistido não encontrado", 404
     if request.method == "POST":
+        submitted_professional = request.form.get("profissional_nome_cargo", "").strip()
+        expected_council_prefix = PROFESSIONAL_COUNCIL_PREFIXES.get(professional_user["perfil"] or "") \
+            if professional_user else ""
+        profile_name = (professional_user["nome"] or "").strip() if professional_user else ""
+        profile_cargo = (professional_user["cargo"] or perfil_nome(professional_user["perfil"])).strip() \
+            if professional_user else ""
+        has_submitted_identity = profile_name.lower() in submitted_professional.lower() \
+            and profile_cargo.lower() in submitted_professional.lower()
+        has_submitted_council = bool(
+            expected_council_prefix
+            and re.search(rf"\b{expected_council_prefix}\b", submitted_professional, re.IGNORECASE)
+            and re.search(r"\d", submitted_professional)
+        )
+        if professional_user and professional_user["perfil"] in MULTIDISCIPLINARY_PROFILES \
+                and not has_professional_details and not (has_submitted_council and has_submitted_identity):
+            connection.close()
+            data, conditions, recommendations = attendance_form_data()
+            data["profissional_nome_cargo"] = submitted_professional
+            flash("Informe o número do conselho regional (CRP, CRESS ou OAB) no perfil ou no campo profissional.", "warning")
+            return render_template(
+                "atendimento.html", title="Atendimento Multidisciplinar", person=person,
+                attendance=data, conditions=conditions, recommendations=recommendations,
+                return_types=ATTENDANCE_RETURN_TYPES, recommendation_options=ATTENDANCE_RECOMMENDATIONS,
+                professional_is_complete=has_professional_details,
+            )
         values = attendance_form_values(request.form)
+        if has_professional_details:
+            values["profissional_nome_cargo"] = professional_label
+            values["profissional"] = professional_label
         cursor = connection.execute(
             "INSERT INTO atendimentos(pessoa_id, %s, criado_por, criado_em) VALUES (?, %s, ?, ?)" % (
                 ", ".join(ATTENDANCE_FIELDS), ", ".join("?" for _ in ATTENDANCE_FIELDS)
@@ -2205,10 +2257,13 @@ def novo_atendimento(pid):
         return redirect(url_for("pessoa", pid=pid))
     connection.close()
     data, conditions, recommendations = attendance_form_data()
+    if professional_label:
+        data["profissional_nome_cargo"] = professional_label
     return render_template(
         "atendimento.html", title="Atendimento Multidisciplinar", person=person,
         attendance=data, conditions=conditions, recommendations=recommendations,
         return_types=ATTENDANCE_RETURN_TYPES, recommendation_options=ATTENDANCE_RECOMMENDATIONS,
+        professional_is_complete=has_professional_details,
     )
 
 

@@ -10,6 +10,11 @@
 .attendance-section h2 span{display:grid;place-items:center;width:28px;height:28px;flex:none;background:#e0f2fe;color:#075985;border-radius:50%;font-size:12px}
 .attendance-form .form-label,.attendance-form legend{margin-bottom:5px;color:#334155;font-size:13px;font-weight:700}
 .attendance-form .form-control,.attendance-form .form-select{min-height:40px;margin-top:0;border-color:#cbd5e1;border-radius:4px;font-size:14px}
+.attendance-time-range{display:grid;gap:6px}
+.attendance-time-range .input-group-text{min-width:56px;justify-content:center;background:#f1f5f6;color:#334155;font-size:12px}
+.attendance-time-range .time-picker-button{display:grid;place-items:center;width:42px;padding:6px;border-color:#cbd5e1}
+.attendance-time-range .time-picker-button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.8}
+.attendance-time-range .attendance-time-input{min-width:0}
 .attendance-form textarea.form-control{min-height:116px}
 .attendance-form .form-check-input{width:1em;margin-top:.25em}
 .attendance-form .form-check-label{display:inline-block;color:#334155;font-size:13px;font-weight:500;cursor:pointer}

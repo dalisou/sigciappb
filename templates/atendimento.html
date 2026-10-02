@@ -15,8 +15,27 @@
 			<h2><span>I</span> Tipo de retorno</h2>
 			<div class="row g-3 align-items-end">
 				<div class="col-12 col-md-4"><label class="form-label" for="data-atendimento">Data do atendimento</label><input class="form-control" type="date" id="data-atendimento" name="data_atendimento" value="{{ attendance.data_atendimento }}" required></div>
-				<div class="col-12 col-md-4"><label class="form-label" for="horario">Horário de início e fim</label><input class="form-control" id="horario" name="horario_inicio_fim" value="{{ attendance.horario_inicio_fim }}" placeholder="Ex.: 14:00 às 15:00"></div>
-				<div class="col-12 col-md-4"><label class="form-label" for="profissional">Profissional (nome e cargo)</label><input class="form-control" id="profissional" name="profissional_nome_cargo" value="{{ attendance.profissional_nome_cargo }}" required></div>
+				<div class="col-12 col-md-4">
+					<label class="form-label" for="horario-inicio">Horário de início e fim</label>
+					<div class="attendance-time-range">
+						<div class="input-group">
+							<span class="input-group-text">Início</span>
+							<input class="form-control attendance-time-input" type="time" id="horario-inicio" aria-label="Horário de início">
+							<button class="btn btn-outline-secondary time-picker-button" type="button" data-time-target="horario-inicio" aria-label="Selecionar horário de início" title="Selecionar horário de início">
+								<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+							</button>
+						</div>
+						<div class="input-group">
+							<span class="input-group-text">Fim</span>
+							<input class="form-control attendance-time-input" type="time" id="horario-fim" aria-label="Horário de término">
+							<button class="btn btn-outline-secondary time-picker-button" type="button" data-time-target="horario-fim" aria-label="Selecionar horário de término" title="Selecionar horário de término">
+								<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+							</button>
+						</div>
+					</div>
+					<input type="hidden" id="horario" name="horario_inicio_fim" value="{{ attendance.horario_inicio_fim }}">
+				</div>
+				<div class="col-12 col-md-4"><label class="form-label" for="profissional">Profissional (nome e cargo)</label><input class="form-control" id="profissional" name="profissional_nome_cargo" value="{{ attendance.profissional_nome_cargo }}" {% if professional_is_complete %}readonly{% endif %} required></div>
 			</div>
 			<fieldset class="mt-4">
 				<legend class="form-label">Tipo de retorno</legend>
@@ -98,6 +117,32 @@
 	</form>
 </div>
 <script>
+	const attendanceTimeStart = document.querySelector('#horario-inicio');
+	const attendanceTimeEnd = document.querySelector('#horario-fim');
+	const attendanceTimeValue = document.querySelector('#horario');
+	const storedTimeRange = attendanceTimeValue.value.match(/(\d{1,2}:\d{2})\s*(?:às|as|-)\s*(\d{1,2}:\d{2})/i);
+	if (storedTimeRange) {
+		attendanceTimeStart.value = storedTimeRange[1].padStart(5, '0');
+		attendanceTimeEnd.value = storedTimeRange[2].padStart(5, '0');
+	}
+	const updateAttendanceTime = () => {
+		attendanceTimeValue.value = attendanceTimeStart.value && attendanceTimeEnd.value
+			? `${attendanceTimeStart.value} às ${attendanceTimeEnd.value}`
+			: '';
+	};
+	[attendanceTimeStart, attendanceTimeEnd].forEach((input) => input.addEventListener('change', updateAttendanceTime));
+	document.querySelectorAll('.time-picker-button').forEach((button) => {
+		button.addEventListener('click', () => {
+			const input = document.getElementById(button.dataset.timeTarget);
+			if (typeof input.showPicker === 'function') {
+				input.showPicker();
+			} else {
+				input.focus();
+				input.click();
+			}
+		});
+	});
+
 	const returnRadios = document.querySelectorAll('.return-type-radio');
 	const otherReturnInput = document.querySelector('.other-return-input');
 	const updateOtherReturn = () => {
