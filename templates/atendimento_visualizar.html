@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/atendimento.css', v=static_version) }}">
+{% endblock %}
+{% block content %}
+<article class="attendance-print container-fluid px-0">
+	<div class="attendance-actions no-print">
+		<a class="btn btn-outline-secondary" href="{{ url_for('pessoa', pid=attendance.pessoa_id) }}">Voltar ao assistido</a>
+		<a class="btn btn-outline-primary" href="{{ url_for('editar_atendimento', aid=attendance.id) }}">Editar atendimento</a>
+		<button class="btn btn-primary" type="button" onclick="window.print()">Imprimir / Salvar PDF</button>
+	</div>
+	<header class="attendance-heading">
+		<p class="attendance-kicker">CIAP · ACOMPANHAMENTO MULTIDISCIPLINAR</p>
+		<h1>Formulário de acompanhamento</h1>
+		<p class="attendance-person">{{ attendance.pessoa_nome }}{% if attendance.processo %}<span>Processo {{ attendance.processo }}</span>{% endif %}</p>
+	</header>
+	<section class="attendance-section">
+		<h2><span>I</span> Identificação e tipo de retorno</h2>
+		<dl class="attendance-summary">
+			<div><dt>Data</dt><dd>{{ attendance.data_atendimento or attendance.data or '—' }}</dd></div>
+			<div><dt>Horário</dt><dd>{{ attendance.horario_inicio_fim or attendance.inicio_fim or '—' }}</dd></div>
+			<div><dt>Profissional</dt><dd>{{ attendance.profissional_nome_cargo or attendance.profissional or '—' }}</dd></div>
+			<div><dt>Tipo de retorno</dt><dd>{{ attendance.tipo_retorno or '—' }}{% if attendance.tipo_retorno == 'Outro' and attendance.outro_tipo_retorno %}: {{ attendance.outro_tipo_retorno }}{% endif %}</dd></div>
+		</dl>
+	</section>
+	<section class="attendance-section">
+		<h2><span>II</span> Verificação de dados e comportamento</h2>
+		<div class="table-responsive"><table class="table condition-table"><thead><tr><th>Verificação</th><th>Resposta</th><th>Detalhamento / Observações</th></tr></thead><tbody>
+		{% for key, label, option_field, observation_field in [
+			('comparecimento_voluntario', 'Comparecimento voluntário', 'comparecimento_voluntario_opcao', 'comparecimento_voluntario_observacao'),
+			('busca_ativa', 'Busca ativa / convocação', 'busca_ativa_opcao', 'busca_ativa_observacao'),
+			('empregado_estudando', 'Empregado ou estudando', 'empregado_estudando_opcao', 'empregado_estudando_observacao'),
+			('aderencia_medidas', 'Aderência às medidas', 'aderencia_medidas_opcao', 'aderencia_medidas_observacao'),
+			('mudanca_endereco_contato', 'Mudança de endereço ou contato', 'mudanca_endereco_contato_opcao', 'mudanca_endereco_contato_observacao')
+		] %}<tr><th>{{ label }}</th><td>{{ attendance[option_field] or '—' }}</td><td>{{ attendance[observation_field] or '—' }}</td></tr>{% endfor %}
+		</tbody></table></div>
+	</section>
+	<section class="attendance-section">
+		<h2><span>III</span> Cumprimento das condições judiciais</h2>
+		<div class="table-responsive"><table class="table condition-table"><thead><tr><th>Condição judicial</th><th>Status</th><th>Doc. comprobatória</th><th>Observações (datas/prazos)</th></tr></thead><tbody>
+		{% for condition in conditions %}<tr><th>{{ condition.nome or condition.label }}</th><td>{{ condition.status or '—' }}</td><td>{{ condition.doc_apresentada or '—' }}</td><td>{{ condition.observacoes or '—' }}</td></tr>{% endfor %}
+		</tbody></table></div>
+	</section>
+	<section class="attendance-section">
+		<h2><span>IV</span> Avaliação psicossocial e intervenção</h2>
+		{% for label, value in [('Relato subjetivo', attendance.relato_subjetivo or attendance.relato), ('Intervenção do profissional', attendance.intervencao_profissional or attendance.intervencao), ('Encaminhamentos pendentes', attendance.encaminhamentos_pendentes or attendance.pendencias)] %}<div class="print-text-block"><h3>{{ label }}</h3><p>{{ value or '—' }}</p></div>{% endfor %}
+	</section>
+	<section class="attendance-section">
+		<h2><span>V</span> Conclusão e recomendação ao Juízo</h2>
+		<p class="attendance-conclusion">{{ attendance.conclusao or '—' }}</p>
+		<h3>Recomendações selecionadas</h3>
+		{% if recommendations %}<ul>{% for recommendation in recommendations %}<li>{{ recommendation }}</li>{% endfor %}</ul>{% elif attendance.recomendacao %}<p>{{ attendance.recomendacao }}</p>{% else %}<p>—</p>{% endif %}
+	</section>
+	<footer class="attendance-signature"><div>Profissional responsável: {{ attendance.profissional_nome_cargo or attendance.profissional or '—' }}</div><div>Assinatura: ____________________________________________</div></footer>
+</article>
+{% endblock %}

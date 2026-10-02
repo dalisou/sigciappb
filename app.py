@@ -251,7 +251,29 @@ REFLECTIVE_GROUP_OPTIONS = ["Homens autores de violência doméstica contra mulh
 ATTENDANCE_FIELDS = [
     "data", "inicio_fim", "profissional", "tipo_retorno", "compareceu", "busca_ativa", "emprego",
     "aderencia", "mudou_contato", "relato", "intervencao", "pendencias", "conclusao", "recomendacao",
+    "data_atendimento", "horario_inicio_fim", "profissional_nome_cargo", "outro_tipo_retorno",
+    "comparecimento_voluntario_opcao", "comparecimento_voluntario_observacao",
+    "busca_ativa_opcao", "busca_ativa_observacao", "empregado_estudando_opcao",
+    "empregado_estudando_observacao", "aderencia_medidas_opcao", "aderencia_medidas_observacao",
+    "mudanca_endereco_contato_opcao", "mudanca_endereco_contato_observacao", "condicoes_judiciais",
+    "relato_subjetivo", "intervencao_profissional", "encaminhamentos_pendentes", "recomendacoes",
 ]
+ATTENDANCE_CONDITIONS = (
+    ("tratamento_saude", "Tratamento de Saúde/Psicossocial (Ex: Hospital Nova Esperança)"),
+    ("comparecimento_juizo", "Comparecimento Periódico em Juízo (CPF)"),
+    ("psc", "Prestação de Serviços à Comunidade (PSC)"),
+    ("outra", "Outra Condição"),
+)
+ATTENDANCE_RETURN_TYPES = (
+    "1º Atendimento Técnico Multidisciplinar", "Primeiro retorno", "Retorno de rotina",
+    "Retorno após ausência", "Outro",
+)
+ATTENDANCE_RECOMMENDATIONS = (
+    "Continuar o acompanhamento de rotina",
+    "Solicitar avaliação psicológica/social mais aprofundada",
+    "Sugerir a modificação das medidas",
+    "Informar o Juízo sobre o descumprimento",
+)
 ATTENDANCE_LABELS = dict(zip(ATTENDANCE_FIELDS, [
     "Data do Atendimento", "Horário de início/Fim", "Profissional responsável (Nome e Cargo)", "Tipo de Retorno",
     "Comparecimento voluntário (Sim/Não)", "Convocação/busca ativa (Sim/Não)", "Empregado ou estudando (Sim/Não)",
@@ -444,6 +466,13 @@ def init_postgres_db():
     ]
     for statement in statements:
         connection.execute(statement)
+    attendance_columns = table_columns(connection, "atendimentos")
+    for field in ATTENDANCE_FIELDS:
+        if field not in attendance_columns:
+            safe_schema_execute(
+                connection,
+                f'ALTER TABLE atendimentos ADD COLUMN IF NOT EXISTS "{field}" TEXT',
+            )
     user_columns = table_columns(connection, "users")
     for field in ("cargo", "matricula", "conselho_regional"):
         if field not in user_columns:
@@ -588,6 +617,10 @@ def init_db():
             ", ".join(f"{field} TEXT" for field in ATTENDANCE_FIELDS),
         )
     )
+    attendance_columns = table_columns(connection, "atendimentos")
+    for field in ATTENDANCE_FIELDS:
+        if field not in attendance_columns:
+            connection.execute(f'ALTER TABLE atendimentos ADD COLUMN "{field}" TEXT')
     columns = table_columns(connection, "pessoas")
     for field in (
         "situacao_grupo", "alerta_frequencia", "prestacao_servico_comunitario",
@@ -2077,23 +2110,92 @@ def documento(filename):
     return redirect(signed_url)
 
 
+def attendance_form_values(form):
+    values = {field: form.get(field, "").strip() for field in ATTENDANCE_FIELDS}
+    values["data"] = values["data_atendimento"]
+    values["inicio_fim"] = values["horario_inicio_fim"]
+    values["profissional"] = values["profissional_nome_cargo"]
+    values["compareceu"] = values["comparecimento_voluntario_opcao"]
+    values["busca_ativa"] = values["busca_ativa_opcao"]
+    values["emprego"] = values["empregado_estudando_opcao"]
+    values["aderencia"] = values["aderencia_medidas_opcao"]
+    values["mudou_contato"] = values["mudanca_endereco_contato_opcao"]
+    values["relato"] = values["relato_subjetivo"]
+    values["intervencao"] = values["intervencao_profissional"]
+    values["pendencias"] = values["encaminhamentos_pendentes"]
+
+    recommendations = [
+        item for item in form.getlist("recomendacao_selecionada")
+        if item in ATTENDANCE_RECOMMENDATIONS
+    ]
+    values["recomendacoes"] = json.dumps(recommendations, ensure_ascii=False)
+    values["recomendacao"] = "; ".join(recommendations)
+    conditions = {}
+    for key, label in ATTENDANCE_CONDITIONS:
+        conditions[key] = {
+            "nome": form.get("condicao_outra_nome", "").strip() if key == "outra" else label,
+            "status": form.get(f"{key}_status", "") if form.get(f"{key}_status", "") in {"Concluído", "Em curso", "Pendente"} else "",
+            "doc_apresentada": form.get(f"{key}_doc", "") if form.get(f"{key}_doc", "") in {"Sim", "Não"} else "",
+            "observacoes": form.get(f"{key}_observacoes", "").strip(),
+        }
+    values["condicoes_judiciais"] = json.dumps(conditions, ensure_ascii=False)
+    values["tipo_retorno"] = form.get("tipo_retorno", "") if form.get("tipo_retorno", "") in ATTENDANCE_RETURN_TYPES else ""
+    return values
+
+
+def attendance_form_data(attendance=None):
+    data = dict(attendance) if attendance else {}
+    fallback_fields = {
+        "data_atendimento": "data", "horario_inicio_fim": "inicio_fim",
+        "profissional_nome_cargo": "profissional", "comparecimento_voluntario_opcao": "compareceu",
+        "busca_ativa_opcao": "busca_ativa", "empregado_estudando_opcao": "emprego",
+        "aderencia_medidas_opcao": "aderencia", "mudanca_endereco_contato_opcao": "mudou_contato",
+        "relato_subjetivo": "relato", "intervencao_profissional": "intervencao",
+        "encaminhamentos_pendentes": "pendencias",
+    }
+    for field, legacy in fallback_fields.items():
+        data[field] = data.get(field) or data.get(legacy) or ""
+    try:
+        stored_conditions = json.loads(data.get("condicoes_judiciais") or "{}")
+    except (TypeError, ValueError):
+        stored_conditions = {}
+    conditions = []
+    for key, label in ATTENDANCE_CONDITIONS:
+        item = stored_conditions.get(key, {}) if isinstance(stored_conditions, dict) else {}
+        conditions.append({
+            "key": key, "label": label, "nome": item.get("nome", label),
+            "status": item.get("status", ""), "doc_apresentada": item.get("doc_apresentada", ""),
+            "observacoes": item.get("observacoes", ""),
+        })
+    try:
+        recommendations = json.loads(data.get("recomendacoes") or "[]")
+        if not isinstance(recommendations, list):
+            recommendations = []
+    except (TypeError, ValueError):
+        recommendations = []
+    if not recommendations and data.get("recomendacao"):
+        recommendations = [item.strip() for item in data["recomendacao"].split(";") if item.strip()]
+    data.setdefault("profissional_nome_cargo", session.get("nome", ""))
+    return data, conditions, recommendations
+
+
 @app.route("/pessoa/<int:pid>/atendimento", methods=["GET", "POST"])
 def novo_atendimento(pid):
     if not authenticated():
         return redirect(url_for("login"))
+    connection = db()
+    person = connection.execute("SELECT id, nome, processo, medida FROM pessoas WHERE id = ?", (pid,)).fetchone()
+    if not person:
+        connection.close()
+        return "Assistido não encontrado", 404
     if request.method == "POST":
-        connection = db()
-        if not connection.execute("SELECT 1 FROM pessoas WHERE id = ?", (pid,)).fetchone():
-            connection.close()
-            return "Assistido não encontrado", 404
+        values = attendance_form_values(request.form)
         cursor = connection.execute(
             "INSERT INTO atendimentos(pessoa_id, %s, criado_por, criado_em) VALUES (?, %s, ?, ?)" % (
                 ", ".join(ATTENDANCE_FIELDS), ", ".join("?" for _ in ATTENDANCE_FIELDS)
             ),
-            (pid, *[
-                session.get("nome", "") if field == "profissional" else request.form.get(field, "")
-                for field in ATTENDANCE_FIELDS
-            ], session["uid"], datetime.now().isoformat(timespec="seconds")),
+            (pid, *(values[field] for field in ATTENDANCE_FIELDS), session["uid"],
+             datetime.now().isoformat(timespec="seconds")),
         )
         attendance_id = cursor.lastrowid
         connection.commit()
@@ -2101,10 +2203,12 @@ def novo_atendimento(pid):
         audit("Atendimento registrado", "atendimento", attendance_id)
         flash("Atendimento registrado com sucesso.")
         return redirect(url_for("pessoa", pid=pid))
+    connection.close()
+    data, conditions, recommendations = attendance_form_data()
     return render_template(
-        "atendimento_form.html", title="Atendimento Multidisciplinar",
-        attendance_fields=ATTENDANCE_FIELDS, attendance_labels=ATTENDANCE_LABELS,
-        attendance={"profissional": session.get("nome", "")},
+        "atendimento.html", title="Atendimento Multidisciplinar", person=person,
+        attendance=data, conditions=conditions, recommendations=recommendations,
+        return_types=ATTENDANCE_RETURN_TYPES, recommendation_options=ATTENDANCE_RECOMMENDATIONS,
     )
 
 
@@ -2119,10 +2223,10 @@ def editar_atendimento(aid):
         connection.close()
         return "Não encontrado", 404
     if request.method == "POST":
-        values = [request.form.get(field, "") for field in ATTENDANCE_FIELDS]
+        values = attendance_form_values(request.form)
         connection.execute(
             "UPDATE atendimentos SET %s WHERE id = ?" % ", ".join(f"{field} = ?" for field in ATTENDANCE_FIELDS),
-            (*values, aid),
+            (*(values[field] for field in ATTENDANCE_FIELDS), aid),
         )
         connection.commit()
         connection.close()
@@ -2130,12 +2234,32 @@ def editar_atendimento(aid):
         flash("Atendimento atualizado com sucesso.")
         return redirect(url_for("pessoa", pid=attendance["pessoa_id"]))
     connection.close()
+    data, conditions, recommendations = attendance_form_data(attendance)
     return render_template(
-        "atendimento_form.html",
+        "atendimento.html",
         title="Editar Atendimento Multidisciplinar",
-        attendance_fields=ATTENDANCE_FIELDS,
-        attendance_labels=ATTENDANCE_LABELS,
-        attendance=attendance,
+        person=get_person(attendance["pessoa_id"]), attendance=data, conditions=conditions,
+        recommendations=recommendations, return_types=ATTENDANCE_RETURN_TYPES,
+        recommendation_options=ATTENDANCE_RECOMMENDATIONS,
+    )
+
+
+@app.route("/atendimento/<int:aid>")
+def visualizar_atendimento(aid):
+    if not authenticated():
+        return redirect(url_for("login"))
+    connection = db()
+    attendance = connection.execute(
+        "SELECT a.*, p.nome AS pessoa_nome, p.processo, p.medida "
+        "FROM atendimentos a JOIN pessoas p ON p.id = a.pessoa_id WHERE a.id = ?", (aid,)
+    ).fetchone()
+    connection.close()
+    if not attendance:
+        return "Não encontrado", 404
+    data, conditions, recommendations = attendance_form_data(attendance)
+    return render_template(
+        "atendimento_visualizar.html", attendance=data, person=attendance,
+        conditions=conditions, recommendations=recommendations,
     )
 
 
