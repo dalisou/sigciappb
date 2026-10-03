@@ -20,11 +20,11 @@
         </div>
         <button>Enviar mensagem</button>
     </form>
-    <h3>Minhas mensagens</h3>
+    <div class="message-history-heading"><h3>Minhas mensagens</h3><a class="btn alt" href="{{ url_for('historico_mensagens') }}">Ver Histórico</a></div>
     {% if messages %}<div class="message-list">{% for message in messages %}<article class="message-item{% if message.destinatario_id == session.uid and not message.lida_em %} message-unread{% endif %}">
         <div class="message-meta"><strong>{% if message.remetente_id == session.uid %}Para: {{ message.destinatario }}{% else %}De: {{ message.remetente }}{% endif %}</strong><span>{{ message.atualizada_em }}{% if message.atualizada_em != message.criada_em %} (editada){% endif %}</span></div>
         <h4>{{ message.assunto or 'Sem assunto' }}</h4><p>{{ message.mensagem }}</p>
-        <div class="message-actions">{% if message.remetente_id == session.uid %}<a class="btn alt" href="{{ url_for('editar_mensagem', message_id=message.id) }}">Editar</a>{% endif %}{% if message.destinatario_id == session.uid and not message.lida_em %}<form method="post" action="{{ url_for('marcar_mensagem_lida', message_id=message.id) }}"><button class="btn alt" type="submit">Marcar como lida</button></form>{% elif message.destinatario_id == session.uid %}<small class="muted">Lida em {{ message.lida_em }}</small>{% endif %}</div>
+        <div class="message-actions">{% if message.remetente_id == session.uid %}<a class="btn alt" href="{{ url_for('editar_mensagem', message_id=message.id) }}">Editar</a>{% endif %}<button class="btn warning" type="button" data-message-delete data-delete-url="{{ url_for('excluir_mensagem', message_id=message.id) }}">Excluir</button><form method="post" action="{{ url_for('arquivar_mensagem', message_id=message.id) }}"><button class="btn alt" type="submit">Arquivar</button></form>{% if message.destinatario_id == session.uid and not message.lida_em %}<form method="post" action="{{ url_for('marcar_mensagem_lida', message_id=message.id) }}"><button class="btn alt" type="submit">Marcar como lida</button></form>{% elif message.destinatario_id == session.uid %}<small class="muted">Lida em {{ message.lida_em }}</small>{% endif %}</div>
     </article>{% endfor %}</div>{% else %}<p class="muted">Você ainda não tem mensagens.</p>{% endif %}
 </section>
 <section class="card scheduling-alert-queue"><h2>Fila de Alerta de Agendamento</h2>

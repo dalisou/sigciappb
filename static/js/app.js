@@ -112,6 +112,23 @@ document.addEventListener('DOMContentLoaded', () => {
 			}
 		});
 	});
+	document.querySelectorAll('[data-message-delete][data-delete-url]').forEach((button) => {
+		button.addEventListener('click', async () => {
+			if (!window.confirm('Deseja excluir permanentemente este comunicado?')) return;
+			button.disabled = true;
+			try {
+				const response = await fetch(button.dataset.deleteUrl, {
+					method: 'DELETE',
+					headers: { Accept: 'application/json', 'X-CSRF-Token': token || '' },
+				});
+				if (!response.ok) throw new Error('Não foi possível excluir o comunicado.');
+				button.closest('.message-item')?.remove();
+			} catch (error) {
+				window.alert(error.message || 'Não foi possível excluir o comunicado.');
+				button.disabled = false;
+			}
+		});
+	});
 });
 const chartField = document.querySelector('#chart-field');
 const dashboardChart = document.querySelector('#dashboard-chart');

@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="message-history-heading"><h1>Histórico de Comunicados</h1><a class="btn alt" href="{{ url_for('dashboard') }}">Voltar ao Painel</a></div>
+<p class="muted">Mensagens enviadas e recebidas, incluindo as arquivadas.</p>
+{% if messages %}<div class="message-list">{% for message in messages %}<article class="message-item{% if message.arquivado %} message-archived{% endif %}">
+    <div class="message-meta"><strong>{% if message.remetente_id == session.uid %}Para: {{ message.destinatario }}{% else %}De: {{ message.remetente }}{% endif %}</strong><span>{{ message.atualizada_em }}{% if message.atualizada_em != message.criada_em %} (editada){% endif %}{% if message.arquivado %} · Arquivada{% endif %}</span></div>
+    <h2>{{ message.assunto or 'Sem assunto' }}</h2><p>{{ message.mensagem }}</p>
+    <div class="message-actions">{% if message.arquivado %}<form method="post" action="{{ url_for('desarquivar_mensagem', message_id=message.id) }}"><button class="btn alt" type="submit">Restaurar</button></form>{% else %}<form method="post" action="{{ url_for('arquivar_mensagem', message_id=message.id) }}"><button class="btn alt" type="submit">Arquivar</button></form>{% endif %}{% if message.remetente_id == session.uid %}<a class="btn alt" href="{{ url_for('editar_mensagem', message_id=message.id) }}">Editar</a>{% endif %}<button class="btn warning" type="button" data-message-delete data-delete-url="{{ url_for('excluir_mensagem', message_id=message.id) }}">Excluir</button></div>
+</article>{% endfor %}</div>{% else %}<p class="muted">Nenhum comunicado no histórico.</p>{% endif %}
+{% endblock %}
