@@ -14,8 +14,8 @@
 		<section class="card attendance-section">
 			<h2><span>I</span> Tipo de retorno</h2>
 			<div class="row g-3 align-items-end">
-				<div class="col-12 col-md-4"><label class="form-label" for="data-atendimento">Data do atendimento</label><input class="form-control" type="date" id="data-atendimento" name="data_atendimento" value="{{ attendance.data_atendimento }}" required></div>
-				<div class="col-12 col-md-4">
+				<div class="col-12 col-md-3"><label class="form-label" for="data-atendimento">Data do atendimento</label><input class="form-control" type="date" id="data-atendimento" name="data_atendimento" value="{{ attendance.data_atendimento }}" required></div>
+				<div class="col-12 col-md-5">
 					<label class="form-label" for="horario-inicio">Horário de início e fim</label>
 					<div class="attendance-time-range">
 						<div class="input-group">
@@ -78,7 +78,7 @@
 					{% for condition in conditions %}
 					<tr>
 						<td>{% if condition.key == 'outra' %}<label class="form-label" for="condicao-outra">Outra condição</label><input class="form-control" id="condicao-outra" name="condicao_outra_nome" value="{{ condition.nome if condition.nome != condition.label else '' }}" placeholder="Nome da condição">{% else %}{{ condition.label }}{% endif %}</td>
-						<td><select class="form-select" name="{{ condition.key }}_status" aria-label="Status: {{ condition.label }}"><option value="">Selecione</option>{% for status in ['Concluído', 'Em curso', 'Pendente'] %}<option value="{{ status }}" {% if condition.status == status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select></td>
+						<td><select class="form-select" name="{{ condition.key }}_status" aria-label="Status: {{ condition.label }}"><option value="">Selecione</option>{% for value, label in [('Concluído', 'Concluído'), ('Em curso', 'Em curso'), ('Pendente', 'Pendente'), ('nao_possui', 'Não possui')] %}<option value="{{ value }}" {% if condition.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
 						<td><select class="form-select" name="{{ condition.key }}_doc" aria-label="Documento comprobatório: {{ condition.label }}"><option value="">Selecione</option>{% for choice in ['Sim', 'Não'] %}<option value="{{ choice }}" {% if condition.doc_apresentada == choice %}selected{% endif %}>{{ choice }}</option>{% endfor %}</select></td>
 						<td><input class="form-control" name="{{ condition.key }}_observacoes" value="{{ condition.observacoes }}" placeholder="Datas, prazos ou detalhes"></td>
 					</tr>

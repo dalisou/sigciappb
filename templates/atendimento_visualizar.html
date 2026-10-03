@@ -39,7 +39,7 @@
 	<section class="attendance-section">
 		<h2><span>III</span> Cumprimento das condições judiciais</h2>
 		<div class="table-responsive"><table class="table condition-table"><thead><tr><th>Condição judicial</th><th>Status</th><th>Doc. comprobatória</th><th>Observações (datas/prazos)</th></tr></thead><tbody>
-		{% for condition in conditions %}<tr><th>{{ condition.nome or condition.label }}</th><td>{{ condition.status or '—' }}</td><td>{{ condition.doc_apresentada or '—' }}</td><td>{{ condition.observacoes or '—' }}</td></tr>{% endfor %}
+		{% for condition in conditions %}<tr><th>{{ condition.nome or condition.label }}</th><td>{{ 'Não possui' if condition.status == 'nao_possui' else condition.status or '—' }}</td><td>{{ condition.doc_apresentada or '—' }}</td><td>{{ condition.observacoes or '—' }}</td></tr>{% endfor %}
 		</tbody></table></div>
 	</section>
 	<section class="attendance-section">

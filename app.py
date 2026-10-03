@@ -2154,7 +2154,7 @@ def attendance_form_values(form):
     for key, label in ATTENDANCE_CONDITIONS:
         conditions[key] = {
             "nome": form.get("condicao_outra_nome", "").strip() if key == "outra" else label,
-            "status": form.get(f"{key}_status", "") if form.get(f"{key}_status", "") in {"Concluído", "Em curso", "Pendente"} else "",
+            "status": form.get(f"{key}_status", "") if form.get(f"{key}_status", "") in {"Concluído", "Em curso", "Pendente", "nao_possui"} else "",
             "doc_apresentada": form.get(f"{key}_doc", "") if form.get(f"{key}_doc", "") in {"Sim", "Não"} else "",
             "observacoes": form.get(f"{key}_observacoes", "").strip(),
         }
