@@ -197,8 +197,8 @@ DOCS = [
 ]
 
 FIELDS = [
-    "nome", "nome_social", "cpf", "rg", "data_nascimento", "nome_mae", "processo", "vara", "rji",
-    "telefone", "data_atendimento", "raca", "sexo", "identidade_genero", "orientacao_sexual",
+    "nome", "nome_social", "cpf", "rg", "data_nascimento", "idade", "faixa_etaria", "nome_mae", "processo", "vara", "rji",
+    "telefone", "data_atendimento", "raca", "sexo", "identidade_genero", "estado_civil", "orientacao_sexual",
     "escolaridade", "pcd", "tipo_deficiencia", "nacionalidade", "pais", "ocupacao", "profissao",
     "religiao", "diploma_legal", "artigo", "tipo_penal", "grupamento_penal", "natureza_atendimento",
     "medida", "grupo_responsabilizacao", "status", "atendimento_individual", "comparecimento",
@@ -213,9 +213,9 @@ GROUP_RESPONSIBILITY_LABELS = {
 }
 
 LABELS = dict(zip(FIELDS, [
-    "Nome do Assistido(a)", "Nome Social", "CPF", "RG/órgão emissor", "Data de nascimento", "Nome da mãe",
+    "Nome do Assistido(a)", "Nome Social", "CPF", "RG/órgão emissor", "Data de nascimento", "Idade", "Faixa Etária", "Nome da mãe",
     "Número do Processo", "Órgão Judicial/Vara", "Nº Inscrição (ID único)", "Telefone(s) WhatsApp",
-    "Data de Atendimento", "Raça/cor da pele (Declarada)", "Sexo (biológico)", "Identidade de Gênero (Declarada)",
+    "Data de Atendimento", "Raça/cor da pele (Declarada)", "Sexo (biológico)", "Identidade de Gênero (Declarada)", "Estado Civil",
     "Orientação Sexual (autodeclaração)", "Escolaridade", "Pessoa com Deficiência", "Tipo de Deficiência",
     "Nacionalidade", "País", "Ocupação", "Profissão", "Religião", "Diploma Legal", "Artigo/Capitulação",
     "Tipo Penal", "Grupamento Penal", "Natureza do Atendimento", "Tipo de Medida/Alternativa",
@@ -227,13 +227,14 @@ LABELS = dict(zip(FIELDS, [
 SELECT_OPTIONS = {
     "raca": ["Preta", "Branca", "Parda", "Amarela", "Indígena", "Não Declarada"],
     "sexo": ["Feminino", "Masculino"],
-    "identidade_genero": ["Homem Cis", "Mulher Cis", "Mulher Trans/Travesti", "Transgênero", "Pessoa Não Binária", "Outro", "Não Informou"],
-    "orientacao_sexual": ["Heterosexual", "Homosexual", "Bisexual", "Pansexual", "Assexual", "Demissexual"],
-    "escolaridade": ["Ensino Fundamental Incompleto", "Ensino Fundamental", "Ensino Médio Incompleto", "Ensino Médio", "Ensino Superior Incompleto", "Ensino Superior", "Pós Graduado", "MBA", "Mestrado", "Doutorado", "Pós Doutorado", "Não Informado"],
-    "pcd": ["Sim", "Não"],
-    "tipo_deficiencia": ["Não Possui", "Motora", "Visual", "Mental/Intelectual", "Auditiva", "Outra(s) Deficiência(s)"],
+    "identidade_genero": ["Homem Cis", "Homem Trans", "Mulher Cis", "Mulher Trans/Travesti", "Transgênero", "Pessoa Não Binária", "Outro", "Não Informou"],
+    "estado_civil": ["Solteiro", "Casado", "Separado", "Divorciado", "Viúvo(a)", "União Estável"],
+    "orientacao_sexual": ["Heterosexual", "Homosexual", "Bisexual", "Pansexual", "Assexual", "Demissexual", "Não Declarado"],
+    "escolaridade": ["Ensino Fundamental Incompleto", "Ensino Fundamental", "Ensino Médio Incompleto", "Ensino Médio", "Ensino Superior Incompleto", "Ensino Superior", "Pós Graduado", "MBA", "Mestrado", "Doutorado", "Pós Doutorado", "Não Informado", "Não Alfabetizado"],
+    "pcd": ["Sim", "Não", "Não Declarado"],
+    "tipo_deficiencia": ["Não Possui", "Motora", "Visual", "Mental/Intelectual", "Auditiva", "Outra(s) Deficiência(s)", "Não Declarado"],
     "nacionalidade": ["Brasileira", "Estrangeira"],
-    "ocupacao": ["Formal", "Informal", "Sem Ocupação"],
+    "ocupacao": ["Formal", "Informal", "Sem Ocupação", "Não Informou"],
     "religiao": ["Católica", "Evangélica", "Cristã", "Matriz Africana", "Espírita", "Budismo", "Judaísmo", "Islamismo", "Hinduísmo", "Fé Bahá'í", "Espiritualidade Sem Religião", "Sem Religião", "Não declarada"],
     "diploma_legal": ["Aguardando audiência", "Antiga Lei de Licitações e Contratos (Lei nº 8.666/93)", "Código de Trânsito Brasileiro (Lei 9.503/97)", "Código Penal/ECA", "Contravenções Penais (Dec. Lei 3.688/41) c/c Lei 11.340/06", "Contravenções Penais (Decreto-Lei 3.688/41)", "Crimes Tributários (Lei 8.137/90)", "Decreto-Lei nº 2.848/40 (Código Penal)", "Direção sob influência de álcool", "Estatuto da Criança e do Adolescente (Lei 8.069/90)", "Estatuto do Desarmamento (Lei 10.826/03)", "Lei 11.343/06 (Lei de Drogas)", "Lei 7.716/89 (Lei de Racismo)", "Lei 8.137/90 (Crimes Tributários)", "Lei 9.605/1998 (Lei de Crimes Ambientais)", "Lei Nº 11.340/06 (Maria da Penha)", "Lei nº 11.343/06 (Lei de Drogas)", "Lei nº 8.069/90 (ECA)", "Lei nº 9.503/97 (Código de Trânsito Brasileiro)"],
     "tipo_penal": ["Abandono material", "Adulteração de Sinal Identificador de Veículo", "Ameaça", "Apropriação Indébita", "Apropriação Indébita Tributária", "Armazenamento, transporte ou guarda de substância tóxica ou perigosa", "Associação para o tráfico", "Condução de veículo sem habilitação", "Corrupção de menores", "Dano Simples", "Descumprimento de Medida Protetiva", "Descumprimento de Medida Protetiva de Urgência", "Difamação", "Dirigir veículo sem habilitação", "Discriminação ou Preconceito de Raça, Cor, Etnia, Religião ou Procedência Nacional", "Divulgação/Transmissão de Cena de Exploração Sexual Infantojuvenil", "Embriaguez ao Volante", "Estelionato", "Falsidade de Atestado Médico", "Falsidade ideológica", "Falsificação de Documento Público", "Fraude em Licitação", "Furto", "Homicídio Culposo no Trânsito", "Importunação Sexual", "Incitação ao crime", "Incêndio", "Injúria", "Injúria Racial", "Lesão corporal", "Lesão Corporal Culposa no Trânsito", "Omissão/fraude de tributo", "Peculato", "Poluição Ambiental", "Porte de arma branca", "Posse/Porte ilegal de arma de fogo", "Receptação", "Roubo Impróprio", "Homicídio Culposo na Direção de Veículo Automotor", "Sonegação", "Sonegação fiscal", "Submeter Menor a Vexame ou Constrangimento", "Tráfico de drogas", "Uso de Documento Falso", "Velocidade Incompatível", "Venda/Exposição de Pornografia Infanto-juvenil", "Violência física/psicológica/sexual/patrimonial/moral", "Violência Sexual"],
@@ -512,6 +513,7 @@ def init_postgres_db():
     )
     person_columns = table_columns(connection, "pessoas")
     for field in (
+        "idade", "faixa_etaria", "estado_civil",
         "prestacao_servico_comunitario", "local_prestacao_servico",
         "grupo_reflexivo", "tipo_grupo_reflexivo",
     ):
@@ -638,6 +640,7 @@ def init_db():
             connection.execute(f'ALTER TABLE atendimentos ADD COLUMN "{field}" TEXT')
     columns = table_columns(connection, "pessoas")
     for field in (
+        "idade", "faixa_etaria", "estado_civil",
         "situacao_grupo", "alerta_frequencia", "prestacao_servico_comunitario",
         "local_prestacao_servico", "grupo_reflexivo", "tipo_grupo_reflexivo",
     ):
@@ -884,6 +887,34 @@ def parse_selected_articles(value):
 
 def person_form_values():
     values = [request.form.get(field, "") for field in FIELDS]
+
+    disability_index = FIELDS.index("tipo_deficiencia")
+    disability_option = request.form.get("tipo_deficiencia_opcao", "")
+    if disability_option in {"Outra(s) Deficiência(s)", "Outros"}:
+        values[disability_index] = request.form.get("tipo_deficiencia_outro", "").strip() or disability_option
+    else:
+        values[disability_index] = disability_option
+
+    birth_date = request.form.get("data_nascimento", "")
+    age = ""
+    age_range = ""
+    try:
+        parsed_birth_date = date.fromisoformat(birth_date)
+        today = date.today()
+        age_value = today.year - parsed_birth_date.year
+        if (today.month, today.day) < (parsed_birth_date.month, parsed_birth_date.day):
+            age_value -= 1
+        if age_value >= 0:
+            age = str(age_value)
+            for start, end in ((18, 24), (25, 29), (30, 34), (35, 39), (40, 44), (45, 49),
+                               (50, 54), (55, 59), (60, 64), (65, 69), (70, 74), (75, 79), (80, 84)):
+                if start <= age_value <= end:
+                    age_range = f"{start} a {end}"
+                    break
+    except (TypeError, ValueError):
+        pass
+    values[FIELDS.index("idade")] = age
+    values[FIELDS.index("faixa_etaria")] = age_range
 
     article_index = FIELDS.index("artigo")
     values[article_index] = " | ".join(submitted_articles())

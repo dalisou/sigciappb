@@ -23,6 +23,19 @@
 				</div>
 				<small id="artigo-help" class="field-help">Marque uma ou mais opções. A busca não altera os itens selecionados.</small>
 			</fieldset>
+			{% elif field == 'tipo_deficiencia' %}
+			{% set disability_options = select_options[field] %}
+			{% set custom_disability = current_value and current_value not in disability_options %}
+			<label>{{ labels[field] }}
+				<select name="tipo_deficiencia_opcao" id="tipo-deficiencia-opcao">
+					<option value="">Selecione</option>
+					{% for option in disability_options %}<option value="{{ option }}" {% if current_value == option or (custom_disability and option == 'Outra(s) Deficiência(s)') %}selected{% endif %}>{{ option }}</option>{% endfor %}
+				</select>
+			</label>
+			<label id="tipo-deficiencia-outro-field" {% if not custom_disability and current_value != 'Outra(s) Deficiência(s)' and current_value != 'Outros' %}hidden{% endif %}>
+				Informe o tipo de deficiência
+				<input type="text" name="tipo_deficiencia_outro" value="{% if custom_disability %}{{ current_value }}{% endif %}" autocomplete="off">
+			</label>
 			{% elif field in select_options %}
 			<label>{{ labels[field] }}
 				<select name="{{ field }}">
@@ -53,9 +66,13 @@
 					{% for option in reflective_group_options %}<option value="{{ option }}" {% if current_value == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
 				</select>
 			</label>
+			{% elif field in ['idade', 'faixa_etaria'] %}
+			<label>{{ labels[field] }}
+				<input name="{{ field }}" id="{{ field }}" value="{{ current_value }}" readonly>
+			</label>
 			{% else %}
 			<label>{{ labels[field] }}
-				<input name="{{ field }}" value="{{ current_value }}" {% if field in ['data_nascimento','data_atendimento','termino_medida'] %}type="date"{% endif %}>
+				<input name="{{ field }}" id="{{ field }}" value="{{ current_value }}" {% if field in ['data_nascimento','data_atendimento','termino_medida'] %}type="date"{% endif %}>
 			</label>
 			{% endif %}
 			{% endfor %}
@@ -100,6 +117,12 @@
 	const serviceLocationInput = serviceLocation?.querySelector('input');
 	const reflectiveSelect = document.querySelector('#grupo-reflexivo');
 	const reflectiveType = document.querySelector('#tipo-grupo-reflexivo-field');
+	const disabilitySelect = document.querySelector('#tipo-deficiencia-opcao');
+	const disabilityOther = document.querySelector('#tipo-deficiencia-outro-field');
+	const disabilityOtherInput = disabilityOther?.querySelector('input');
+	const birthDateInput = document.getElementById('data_nascimento');
+	const ageInput = document.getElementById('idade');
+	const ageRangeInput = document.getElementById('faixa_etaria');
 	const updateDependentFields = () => {
 		const serviceEnabled = serviceSelect?.value === 'Sim';
 		if (serviceLocation) serviceLocation.hidden = !serviceEnabled;
@@ -107,9 +130,40 @@
 		const reflectiveEnabled = reflectiveSelect?.value === 'Sim';
 		if (reflectiveType) reflectiveType.hidden = !reflectiveEnabled;
 		if (!reflectiveEnabled && reflectiveType) reflectiveType.querySelector('select').value = '';
+		const customDisability = ['Outra(s) Deficiência(s)', 'Outros'].includes(disabilitySelect?.value);
+		if (disabilityOther) disabilityOther.hidden = !customDisability;
+		if (disabilityOtherInput) {
+			disabilityOtherInput.disabled = !customDisability;
+			disabilityOtherInput.required = customDisability;
+		}
+	};
+	const updateAgeFields = () => {
+		const parts = birthDateInput?.value.split('-').map(Number) || [];
+		if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
+			if (ageInput) ageInput.value = '';
+			if (ageRangeInput) ageRangeInput.value = '';
+			return;
+		}
+		const [year, month, day] = parts;
+		const today = new Date();
+		let age = today.getFullYear() - year;
+		if (today.getMonth() + 1 < month || (today.getMonth() + 1 === month && today.getDate() < day)) age -= 1;
+		if (age < 0) {
+			if (ageInput) ageInput.value = '';
+			if (ageRangeInput) ageRangeInput.value = '';
+			return;
+		}
+		const ageGroups = [[18, 24], [25, 29], [30, 34], [35, 39], [40, 44], [45, 49], [50, 54], [55, 59], [60, 64], [65, 69], [70, 74], [75, 79], [80, 84]];
+		const ageGroup = ageGroups.find(([start, end]) => age >= start && age <= end);
+		if (ageInput) ageInput.value = String(age);
+		if (ageRangeInput) ageRangeInput.value = ageGroup ? `${ageGroup[0]} a ${ageGroup[1]}` : '';
 	};
 	serviceSelect?.addEventListener('change', updateDependentFields);
 	reflectiveSelect?.addEventListener('change', updateDependentFields);
+	disabilitySelect?.addEventListener('change', updateDependentFields);
+	birthDateInput?.addEventListener('input', updateAgeFields);
+	birthDateInput?.addEventListener('change', updateAgeFields);
 	updateDependentFields();
+	updateAgeFields();
 </script>
 {% endblock %}
