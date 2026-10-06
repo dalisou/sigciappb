@@ -6,7 +6,7 @@
 		<h1>Relatórios</h1>
 		<p class="muted">Leitura operacional dos assistidos que não compareceram aos retornos agendados.</p>
 	</div>
-	<div class="actions report-actions"><button type="button" onclick="window.print()">Imprimir relatório</button><a class="btn alt" href="{{ url_for('agendamentos') }}">Voltar aos agendamentos</a></div>
+	<div class="actions report-actions"><a class="btn" href="{{ url_for('relatorio_senappen') }}">Relatório Semestral SENAPPEN</a><button type="button" onclick="window.print()">Imprimir relatório</button><a class="btn alt" href="{{ url_for('agendamentos') }}">Voltar aos agendamentos</a></div>
 </div>
 <div class="card report-intro">
 	<div><strong>Modelo ativo</strong><span>Faltas em agendamento</span></div>

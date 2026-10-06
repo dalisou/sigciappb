@@ -1398,6 +1398,198 @@ def relatorios():
     )
 
 
+@app.route("/relatorios/senappen")
+def relatorio_senappen():
+    if not authenticated():
+        return redirect(url_for("login"))
+
+    today = date.today()
+    default_semester = 1 if today.month <= 6 else 2
+    try:
+        year = int(request.args.get("ano", today.year))
+        semester = int(request.args.get("semestre", default_semester))
+    except (TypeError, ValueError):
+        year, semester = today.year, default_semester
+    if not 1900 <= year <= 2100 or semester not in (1, 2):
+        year, semester = today.year, default_semester
+
+    first_month = 1 if semester == 1 else 7
+    start = date(year, first_month, 1)
+    month_count = 6
+    month_labels = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+    months = [
+        {"key": f"{year}-{month:02d}", "label": month_labels[month - 1], "total": 0}
+        for month in range(first_month, first_month + month_count)
+    ]
+    start_text = start.isoformat()
+    end_text = date(year, first_month + month_count, 1).isoformat() if first_month == 1 else date(year + 1, 1, 1).isoformat()
+
+    connection = db()
+    people = connection.execute(
+        "SELECT criado_em, data_atendimento, data_nascimento, faixa_etaria, idade, medida, "
+        "identidade_genero, raca, pcd, tipo_deficiencia, escolaridade, ocupacao, nacionalidade, pais "
+        "FROM pessoas WHERE (criado_em >= ? AND criado_em < ?) "
+        "OR ((criado_em IS NULL OR criado_em = '') AND data_atendimento >= ? AND data_atendimento < ?)",
+        (start_text, end_text, start_text, end_text),
+    ).fetchall()
+    finalized = connection.execute(
+        "SELECT medida, termino_medida FROM pessoas "
+        "WHERE termino_medida >= ? AND termino_medida < ?",
+        (start_text, end_text),
+    ).fetchall()
+    connection.close()
+
+    def key(value):
+        normalized = unicodedata.normalize("NFKD", str(value or "").strip().casefold())
+        return " ".join("".join(char for char in normalized if not unicodedata.combining(char)).split())
+
+    def categories(labels):
+        return {label: 0 for label in labels}
+
+    for person in people:
+        entry_date = (person["criado_em"] or person["data_atendimento"] or "")[:10]
+        month_key = entry_date[:7]
+        for item in months:
+            if item["key"] == month_key:
+                item["total"] += 1
+
+    modality_labels = [
+        "Acordo de não persecução penal", "Conciliação", "Justiça restaurativa", "Mediação",
+        "Medida cautelar diversa da prisão", "Medidas protetivas de urgência", "Penas restritivas de direito",
+        "Suspensão condicional da pena", "Suspensão condicional do processo", "Transação penal", "Outras modalidades",
+    ]
+    modality_aliases = {
+        "acordo de nao persecução penal": "Acordo de não persecução penal",
+        "acordo de nao persecucao penal": "Acordo de não persecução penal",
+        "sursis": "Suspensão condicional da pena",
+        "suspensao condicional da pena": "Suspensão condicional da pena",
+        "scp": "Suspensão condicional do processo",
+        "suspensao condicional do processo": "Suspensão condicional do processo",
+    }
+    normalized_modalities = {key(label): label for label in modality_labels}
+
+    def modality(value):
+        value_key = key(value)
+        return modality_aliases.get(value_key, normalized_modalities.get(value_key, "Outras modalidades"))
+
+    entries_by_modality = categories(modality_labels)
+    finalizations_by_month = {item["key"]: 0 for item in months}
+    finalizations_by_modality = categories(modality_labels)
+    for person in people:
+        entries_by_modality[modality(person["medida"])] += 1
+    for person in finalized:
+        completion_date = (person["termino_medida"] or "")[:10]
+        month_key = completion_date[:7]
+        if month_key in finalizations_by_month:
+            finalizations_by_month[month_key] += 1
+        finalizations_by_modality[modality(person["medida"])] += 1
+    for item in months:
+        item["finalizations"] = finalizations_by_month[item["key"]]
+
+    def count_field(field, labels, aliases=None, fallback=None):
+        counts = categories(labels)
+        normalized = {key(label): label for label in labels}
+        normalized.update(aliases or {})
+        for person in people:
+            value_key = key(person[field])
+            label = normalized.get(value_key, fallback if value_key else labels[-1])
+            counts[label] += 1
+        return counts
+
+    gender_labels = ["Mulher Cisgênero", "Homem Cisgênero", "Mulher Trans/Travesti", "Homem Trans", "Pessoa não binária", "Outro", "Não informou"]
+    gender_aliases = {
+        "mulher cis": "Mulher Cisgênero", "mulher cisgenero": "Mulher Cisgênero",
+        "homem cis": "Homem Cisgênero", "homem cisgenero": "Homem Cisgênero",
+        "pessoa nao binaria": "Pessoa não binária", "nao informou": "Não informou",
+        "nao informado": "Não informou", "transgenero": "Outro",
+    }
+    gender = count_field("identidade_genero", gender_labels, gender_aliases, "Outro")
+
+    age_labels = ["18 a 24 anos", "25 a 29 anos", "30 a 34 anos", "35 a 59 anos", "60 a 74 anos", "75 anos ou mais", "Não informou"]
+    ages = categories(age_labels)
+    for person in people:
+        age_value = key(person["faixa_etaria"])
+        age = None
+        if not age_value:
+            try:
+                birth = date.fromisoformat((person["data_nascimento"] or "")[:10])
+                entry_date = (person["criado_em"] or person["data_atendimento"] or "")[:10]
+                reference_date = date.fromisoformat(entry_date) if entry_date else start
+                age = reference_date.year - birth.year - ((reference_date.month, reference_date.day) < (birth.month, birth.day))
+            except ValueError:
+                try:
+                    age = int(person["idade"])
+                except (TypeError, ValueError):
+                    pass
+        if age is not None:
+            age_value = "18 a 24 anos" if 18 <= age <= 24 else "25 a 29 anos" if 25 <= age <= 29 else "30 a 34 anos" if 30 <= age <= 34 else "35 a 59 anos" if 35 <= age <= 59 else "60 a 74 anos" if 60 <= age <= 74 else "75 anos ou mais" if age >= 75 else "Não informou"
+        age_aliases = {"18 a 24": "18 a 24 anos", "25 a 29": "25 a 29 anos", "30 a 34": "30 a 34 anos", "35 a 59": "35 a 59 anos", "60 a 74": "60 a 74 anos", "75 ou mais": "75 anos ou mais", "nao informado": "Não informou"}
+        normalized_ages = {key(label): label for label in age_labels}
+        normalized_ages.update(age_aliases)
+        ages[normalized_ages.get(age_value, "Não informou")] += 1
+
+    race_labels = ["Preta", "Branca", "Parda", "Indígena", "Amarela", "Outro", "Não informou"]
+    race = count_field("raca", race_labels, {"nao declarada": "Não informou", "nao informado": "Não informou"}, "Outro")
+    disability_labels = ["Deficiência Motora", "Deficiência Visual", "Deficiência Mental/Intelectual", "Deficiência Auditiva", "Outra", "Não informou"]
+    disability_aliases = {
+        "motora": "Deficiência Motora", "visual": "Deficiência Visual",
+        "mental/intelectual": "Deficiência Mental/Intelectual", "auditiva": "Deficiência Auditiva",
+        "outra(s) deficiencia(s)": "Outra", "outra deficiencia": "Outra",
+        "nao declarado": "Não informou", "nao declarada": "Não informou",
+    }
+    disability = categories(disability_labels)
+    for person in people:
+        if key(person["pcd"]) in {"nao", "nao possui"}:
+            continue
+        value_key = key(person["tipo_deficiencia"])
+        if key(person["pcd"]) not in {"sim", "yes"}:
+            disability["Não informou"] += 1
+        else:
+            normalized_disability = {key(label): label for label in disability_labels}
+            normalized_disability.update(disability_aliases)
+            disability[normalized_disability.get(value_key, "Não informou")] += 1
+
+    education_labels = ["Não Alfabetizado", "Ensino Fundamental Incompleto", "Ensino Fundamental", "Ensino Médio Incompleto", "Ensino Médio", "Ensino Superior", "Pós-Graduado", "Não informou"]
+    education_aliases = {
+        "nao informado": "Não informou", "nao alfabetizada": "Não Alfabetizado",
+        "ensino superior incompleto": "Ensino Superior", "pos graduado": "Pós-Graduado",
+        "mba": "Pós-Graduado", "mestrado": "Pós-Graduado", "doutorado": "Pós-Graduado",
+        "pos doutorado": "Pós-Graduado",
+    }
+    education = count_field("escolaridade", education_labels, education_aliases, "Não informou")
+    occupation_labels = ["Ocupação Formal", "Ocupação Informal", "Sem Ocupação", "Não informou"]
+    occupation = count_field("ocupacao", occupation_labels, {
+        "formal": "Ocupação Formal", "informal": "Ocupação Informal",
+        "sem ocupacao": "Sem Ocupação", "nao informou": "Não informou", "nao informado": "Não informou",
+    }, "Não informou")
+
+    nationality = {"Brasileiros": 0, "Estrangeiros": 0, "Não informado": 0}
+    countries = {}
+    for person in people:
+        country = (person["pais"] or "").strip()
+        nationality_key = key(person["nacionalidade"])
+        country_key = key(country)
+        if nationality_key in {"brasileira", "brasileiro", "brasileira nata", "brasileiro nato"} or country_key in {"brasil", "brasileira", "brasileiro"}:
+            nationality["Brasileiros"] += 1
+        elif nationality_key in {"estrangeira", "estrangeiro"} or country:
+            nationality["Estrangeiros"] += 1
+            country_name = country or "Não informado"
+            countries[country_name] = countries.get(country_name, 0) + 1
+        else:
+            nationality["Não informado"] += 1
+
+    return render_template(
+        "relatorios/senappen.html", title="Relatório Semestral SENAPPEN",
+        year=year, semester=semester, months=months,
+        entries_by_modality=entries_by_modality, finalizations_by_modality=finalizations_by_modality,
+        gender=gender, ages=ages, race=race, disability=disability,
+        education=education, occupation=occupation, nationality=nationality,
+        countries=sorted(countries.items(), key=lambda item: (-item[1], item[0].casefold())),
+        total_entries=len(people), total_finalizations=len(finalized),
+    )
+
+
 @app.route("/")
 def dashboard():
     if not authenticated():
