@@ -84,5 +84,5 @@
     {% if countries %}<table class="senappen-table"><thead><tr><th>País</th><th class="number">Quantidade</th></tr></thead><tbody>{% for country, total in countries %}<tr><td>{{ country }}</td><td class="number">{{ total }}</td></tr>{% endfor %}</tbody></table>{% else %}<p class="senappen-note">Nenhuma pessoa estrangeira registrada no semestre.</p>{% endif %}
   </section>
 </div>
-<p class="senappen-note">Entradas consideram a data de criação do cadastro, com uso da data do primeiro atendimento quando a data de criação não estiver disponível. Finalizações consideram a data de término da medida cadastrada.</p>
+<p class="senappen-note">Entradas consideram a data do primeiro atendimento. Finalizações consideram a data de término da medida cadastrada.</p>
 {% endblock %}

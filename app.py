@@ -1427,11 +1427,10 @@ def relatorio_senappen():
 
     connection = db()
     people = connection.execute(
-        "SELECT criado_em, data_atendimento, data_nascimento, faixa_etaria, idade, medida, "
+        "SELECT data_atendimento, data_nascimento, faixa_etaria, idade, medida, "
         "identidade_genero, raca, pcd, tipo_deficiencia, escolaridade, ocupacao, nacionalidade, pais "
-        "FROM pessoas WHERE (criado_em >= ? AND criado_em < ?) "
-        "OR ((criado_em IS NULL OR criado_em = '') AND data_atendimento >= ? AND data_atendimento < ?)",
-        (start_text, end_text, start_text, end_text),
+        "FROM pessoas WHERE data_atendimento >= ? AND data_atendimento < ?",
+        (start_text, end_text),
     ).fetchall()
     finalized = connection.execute(
         "SELECT medida, termino_medida FROM pessoas "
@@ -1448,7 +1447,7 @@ def relatorio_senappen():
         return {label: 0 for label in labels}
 
     for person in people:
-        entry_date = (person["criado_em"] or person["data_atendimento"] or "")[:10]
+        entry_date = (person["data_atendimento"] or "")[:10]
         month_key = entry_date[:7]
         for item in months:
             if item["key"] == month_key:
@@ -1514,7 +1513,7 @@ def relatorio_senappen():
         if not age_value:
             try:
                 birth = date.fromisoformat((person["data_nascimento"] or "")[:10])
-                entry_date = (person["criado_em"] or person["data_atendimento"] or "")[:10]
+                entry_date = (person["data_atendimento"] or "")[:10]
                 reference_date = date.fromisoformat(entry_date) if entry_date else start
                 age = reference_date.year - birth.year - ((reference_date.month, reference_date.day) < (birth.month, birth.day))
             except ValueError:
