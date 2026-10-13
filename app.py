@@ -1993,6 +1993,117 @@ def editar_pessoa(pid):
     )
 
 
+@app.route("/pessoa/<int:pid>/documento/anexar", methods=["POST"])
+def anexar_documento(pid):
+    wants_json = request.accept_mimetypes.best == "application/json"
+    if not authenticated():
+        if wants_json:
+            return jsonify(error="Sessão expirada. Entre novamente."), 401
+        return redirect(url_for("login"))
+    if not is_admin():
+        if wants_json:
+            return jsonify(error="Acesso permitido apenas para administradores."), 403
+        return "Acesso permitido apenas para administradores.", 403
+
+    try:
+        category_id = int(request.form.get("category_id", ""))
+        if category_id < 0:
+            raise ValueError
+        document_label = DOCS[category_id]
+    except (ValueError, IndexError):
+        if wants_json:
+            return jsonify(error="Categoria de documento inválida."), 400
+        return "Categoria de documento inválida.", 400
+    uploaded = request.files.get("document")
+    if not uploaded or not uploaded.filename:
+        if wants_json:
+            return jsonify(error="Selecione um arquivo para anexar."), 400
+        flash("Selecione um arquivo para anexar.")
+        return redirect(url_for("pessoa", pid=pid))
+
+    replace_filename = request.form.get("replace_filename", "").strip()
+    connection = db()
+    person = connection.execute("SELECT documentos FROM pessoas WHERE id = ?", (pid,)).fetchone()
+    if not person:
+        connection.close()
+        if wants_json:
+            return jsonify(error="Cadastro não encontrado."), 404
+        return "Não encontrado", 404
+    if replace_filename:
+        try:
+            replace_filename = document_object_key(replace_filename)
+        except ValueError:
+            connection.close()
+            if wants_json:
+                return jsonify(error="Documento não encontrado."), 404
+            return "Documento não encontrado", 404
+        current_document = next(
+            (item for item in document_entries(person["documentos"])
+             if item["filename"] == replace_filename and item["label"] == document_label),
+            None,
+        )
+        if not current_document:
+            connection.close()
+            if wants_json:
+                return jsonify(error="Documento não encontrado nesta categoria."), 404
+            return "Documento não encontrado nesta categoria.", 404
+
+    try:
+        new_filename = save_document(uploaded, pid, category_id)
+    except ValueError as error:
+        connection.close()
+        if wants_json:
+            return jsonify(error=str(error)), 400
+        flash(str(error))
+        return redirect(url_for("pessoa", pid=pid))
+    except Exception:
+        connection.close()
+        app.logger.exception("Falha ao anexar documento ao assistido %s", pid)
+        if wants_json:
+            return jsonify(error="Não foi possível anexar o documento."), 500
+        flash("Não foi possível anexar o documento.")
+        return redirect(url_for("pessoa", pid=pid))
+
+    updated_documents = person["documentos"] or ""
+    if replace_filename:
+        updated_documents = remove_document_reference(updated_documents, replace_filename)
+    updated_documents += f"{document_label}: {new_filename}\n"
+    try:
+        connection.execute("UPDATE pessoas SET documentos = ? WHERE id = ?", (updated_documents, pid))
+        connection.commit()
+    except Exception:
+        connection.close()
+        try:
+            delete_document(new_filename)
+        except Exception:
+            app.logger.exception("Falha ao limpar o novo documento %s", new_filename)
+        app.logger.exception("Falha ao atualizar documentos do assistido %s", pid)
+        if wants_json:
+            return jsonify(error="Não foi possível salvar o documento no cadastro."), 500
+        flash("Não foi possível salvar o documento no cadastro.")
+        return redirect(url_for("pessoa", pid=pid))
+    connection.close()
+
+    if replace_filename:
+        try:
+            delete_document(replace_filename)
+        except Exception:
+            app.logger.exception("Falha ao excluir o documento substituído %s", replace_filename)
+    audit(
+        "Documento substituído no cadastro" if replace_filename else "Documento anexado ao cadastro",
+        "pessoa", pid, tipo_acao="Anexo de Documento",
+    )
+    if wants_json:
+        return jsonify(
+            success=True,
+            filename=new_filename,
+            display_name=new_filename.rsplit("/", 1)[-1],
+            download_url=url_for("documento", filename=new_filename),
+        )
+    flash("Documento anexado com sucesso.")
+    return redirect(url_for("pessoa", pid=pid))
+
+
 @app.route("/pessoa/<int:pid>/documento/excluir", methods=["POST"])
 def excluir_documento(pid):
     wants_json = request.accept_mimetypes.best == "application/json"

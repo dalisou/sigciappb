@@ -43,19 +43,33 @@
 </div>
 <div class="card document-attachments-card">
 	<h2>Documentos anexados</h2>
+	<p class="document-feedback" data-document-feedback role="status" aria-live="polite" hidden></p>
 	<div class="document-attachment-groups">
 		{% for document_label in docs %}
+		{% set category_id = loop.index0 %}
 		{% set matching_documents = documents|selectattr('label', 'equalto', document_label)|list %}
 		<section class="document-attachment-group">
-			<h3>{{ loop.index }}. {{ document_label }}</h3>
+			<div class="document-attachment-heading">
+				<h3>{{ loop.index }}. {{ document_label }}</h3>
+				{% if is_admin %}<form class="document-upload-form" method="post" enctype="multipart/form-data" action="{{ url_for('anexar_documento', pid=person.id) }}" data-document-upload>
+					<input type="hidden" name="category_id" value="{{ category_id }}">
+					<input class="visually-hidden" type="file" name="document" data-upload-file accept="*/*">
+					<button class="icon-button" type="button" data-upload-trigger aria-label="Anexar {{ document_label }}" title="Anexar documento">&#128206;</button>
+				</form>{% endif %}
+			</div>
 			<ul class="document-attachment-files" {% if not matching_documents %}hidden{% endif %}>
 				{% for document in matching_documents %}
 				<li data-document-filename="{{ document.filename }}">
 					<a href="{{ url_for('documento', filename=document.filename) }}" target="_blank" rel="noopener">{{ document.display_name }}</a>
-					{% if is_admin %}<form method="post" action="{{ url_for('excluir_documento', pid=person.id) }}" onsubmit="return confirm('Tem certeza que deseja excluir este documento?');">
-						<input type="hidden" name="filename" value="{{ document.filename }}">
-						<button class="icon-button danger" type="submit" aria-label="Excluir {{ document.display_name }}" title="Excluir arquivo">&#128465;</button>
-					</form>{% endif %}
+					{% if is_admin %}<div class="document-file-actions">
+						<form class="document-upload-form" method="post" enctype="multipart/form-data" action="{{ url_for('anexar_documento', pid=person.id) }}" data-document-upload>
+							<input type="hidden" name="category_id" value="{{ category_id }}">
+							<input type="hidden" name="replace_filename" value="{{ document.filename }}">
+							<input class="visually-hidden" type="file" name="document" data-upload-file accept="*/*">
+							<button class="icon-button" type="button" data-upload-trigger aria-label="Substituir {{ document.display_name }}" title="Anexar ou substituir arquivo">&#128206;</button>
+						</form>
+						<button class="icon-button danger document-delete-button" type="button" data-delete-url="{{ url_for('excluir_documento', pid=person.id) }}" data-filename="{{ document.filename }}" aria-label="Excluir {{ document.display_name }}" title="Excluir arquivo">&#128465;</button>
+					</div>{% endif %}
 				</li>
 				{% endfor %}
 			</ul>

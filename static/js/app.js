@@ -88,6 +88,37 @@ document.addEventListener('DOMContentLoaded', () => {
 			});
 		});
 	}
+	const documentFeedback = document.querySelector('[data-document-feedback]');
+	const showDocumentFeedback = (message, isError = false) => {
+		if (!documentFeedback) return;
+		documentFeedback.textContent = message;
+		documentFeedback.hidden = false;
+		documentFeedback.classList.toggle('is-error', isError);
+	};
+	document.querySelectorAll('[data-document-upload]').forEach((form) => {
+		const fileInput = form.querySelector('[data-upload-file]');
+		form.querySelector('[data-upload-trigger]')?.addEventListener('click', () => fileInput?.click());
+		fileInput?.addEventListener('change', async () => {
+			if (!fileInput.files?.length) return;
+			const buttons = form.querySelectorAll('button');
+			buttons.forEach((button) => { button.disabled = true; });
+			try {
+				const response = await fetch(form.action, {
+					method: 'POST',
+					headers: { Accept: 'application/json' },
+					body: new FormData(form),
+				});
+				const result = await response.json().catch(() => ({}));
+				if (!response.ok) throw new Error(result.error || 'Não foi possível anexar o documento.');
+				showDocumentFeedback('Documento anexado com sucesso. Atualizando a lista...');
+				window.setTimeout(() => window.location.reload(), 700);
+			} catch (error) {
+				showDocumentFeedback(error.message || 'Não foi possível anexar o documento.', true);
+				buttons.forEach((button) => { button.disabled = false; });
+				fileInput.value = '';
+			}
+		});
+	});
 	document.querySelectorAll('[data-delete-url][data-filename]').forEach((button) => {
 		button.addEventListener('click', async () => {
 			if (!window.confirm('Deseja realmente excluir este arquivo?')) return;
@@ -98,7 +129,8 @@ document.addEventListener('DOMContentLoaded', () => {
 					headers: { Accept: 'application/json' },
 					body: new URLSearchParams({ filename: button.dataset.filename, _csrf_token: token || '' }),
 				});
-				if (!response.ok) throw new Error('Não foi possível excluir o arquivo.');
+				const result = await response.json().catch(() => ({}));
+				if (!response.ok) throw new Error(result.error || 'Não foi possível excluir o arquivo.');
 				const list = button.closest('.document-attachment-files');
 				button.closest('li')?.remove();
 				if (list && !list.children.length) {
@@ -106,8 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
 					list.hidden = true;
 					if (message) message.hidden = false;
 				}
+				showDocumentFeedback('Documento excluído com sucesso.');
 			} catch (error) {
-				window.alert(error.message || 'Não foi possível excluir o arquivo.');
+				showDocumentFeedback(error.message || 'Não foi possível excluir o arquivo.', true);
 				button.disabled = false;
 			}
 		});
