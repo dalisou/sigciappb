@@ -51,7 +51,7 @@
 		<section class="document-attachment-group">
 			<div class="document-attachment-heading">
 				<h3>{{ loop.index }}. {{ document_label }}</h3>
-				{% if is_admin %}<form class="document-upload-form" method="post" enctype="multipart/form-data" action="{{ url_for('anexar_documento', pid=person.id) }}" data-document-upload>
+				{% if is_admin and not matching_documents %}<form class="document-upload-form" method="post" enctype="multipart/form-data" action="{{ url_for('anexar_documento', pid=person.id) }}" data-document-upload>
 					<input type="hidden" name="category_id" value="{{ category_id }}">
 					<input class="visually-hidden" type="file" name="document" data-upload-file accept="*/*">
 					<button class="icon-button" type="button" data-upload-trigger aria-label="Anexar {{ document_label }}" title="Anexar documento">&#128206;</button>
@@ -64,9 +64,8 @@
 					{% if is_admin %}<div class="document-file-actions">
 						<form class="document-upload-form" method="post" enctype="multipart/form-data" action="{{ url_for('anexar_documento', pid=person.id) }}" data-document-upload>
 							<input type="hidden" name="category_id" value="{{ category_id }}">
-							<input type="hidden" name="replace_filename" value="{{ document.filename }}">
 							<input class="visually-hidden" type="file" name="document" data-upload-file accept="*/*">
-							<button class="icon-button" type="button" data-upload-trigger aria-label="Substituir {{ document.display_name }}" title="Anexar ou substituir arquivo">&#128206;</button>
+							<button class="icon-button" type="button" data-upload-trigger aria-label="Anexar novo documento em {{ document_label }}" title="Anexar novo documento">&#128206;</button>
 						</form>
 						<button class="icon-button danger document-delete-button" type="button" data-delete-url="{{ url_for('excluir_documento', pid=person.id) }}" data-filename="{{ document.filename }}" aria-label="Excluir {{ document.display_name }}" title="Excluir arquivo">&#128465;</button>
 					</div>{% endif %}
