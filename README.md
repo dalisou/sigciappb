@@ -35,7 +35,7 @@ Acesse `http://localhost:5000`.
 - Registros de atendimentos da equipe multidisciplinar.
 - Termo de Atendimento Unificado e Formulário de Retorno em versão para impressão pelo navegador.
 - Auditoria de cadastros e atendimentos por usuário e data.
-- Grupos reflexivos separados por categoria em lotes de até 20 pessoas.
+- Grupos reflexivos separados por categoria com quantidade flexível de participantes.
 - Exportação da base cadastrada em CSV compatível com planilhas.
 
 ## Deploy no Render

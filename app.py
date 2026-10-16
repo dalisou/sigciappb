@@ -120,6 +120,10 @@ class PostgresConnection:
         cursor.execute(query, parameters)
         return PostgresCursor(cursor)
 
+    def executemany(self, query, parameter_sets):
+        cursor = self.connection.cursor()
+        cursor.executemany(query.replace("?", "%s"), parameter_sets)
+
     def commit(self):
         self.connection.commit()
 
@@ -2893,21 +2897,27 @@ def formar_grupo():
     if denial:
         return denial
     person_ids = list(dict.fromkeys(request.form.getlist("pessoa_id")))
-    if not 1 <= len(person_ids) <= 20:
-        flash("Selecione entre 1 e 20 assistidos para formar o grupo.")
+    if not person_ids:
+        flash("Selecione ao menos um assistido para formar o grupo.")
         return redirect(url_for("grupos"))
     group_name = request.form.get("nome", "").strip()
     connection = db()
-    placeholders = ",".join("?" for _ in person_ids)
-    people = connection.execute(
-        f"SELECT id FROM pessoas WHERE id IN ({placeholders}) AND grupo_responsabilizacao <> ''",
-        person_ids,
-    ).fetchall()
-    already_grouped = connection.execute(
-        f"SELECT pessoa_id FROM grupo_participantes WHERE pessoa_id IN ({placeholders})",
-        person_ids,
-    ).fetchall()
-    if len(people) != len(person_ids) or already_grouped:
+    normalized_ids = []
+    try:
+        normalized_ids = list(dict.fromkeys(int(person_id) for person_id in person_ids))
+    except (TypeError, ValueError):
+        pass
+    eligible_people = []
+    if len(normalized_ids) == len(person_ids):
+        for person_id in normalized_ids:
+            person = connection.execute(
+                "SELECT p.id FROM pessoas p WHERE p.id = ? AND p.grupo_responsabilizacao <> '' "
+                "AND NOT EXISTS (SELECT 1 FROM grupo_participantes gp WHERE gp.pessoa_id = p.id)",
+                (person_id,),
+            ).fetchone()
+            if person:
+                eligible_people.append(person_id)
+    if len(eligible_people) != len(person_ids):
         connection.close()
         flash("Um ou mais assistidos já pertencem a um grupo ou não podem ser selecionados.")
         return redirect(url_for("grupos"))
@@ -2919,15 +2929,14 @@ def formar_grupo():
         (group_name, "Em andamento", datetime.now().isoformat(timespec="seconds"), session["uid"]),
     )
     group_id = group_cursor.lastrowid
-    for person_id in person_ids:
-        connection.execute(
-            "INSERT INTO grupo_participantes(grupo_id, pessoa_id) VALUES (?, ?)",
-            (group_id, person_id),
-        )
+    connection.executemany(
+        "INSERT INTO grupo_participantes(grupo_id, pessoa_id) VALUES (?, ?)",
+        [(group_id, person_id) for person_id in eligible_people],
+    )
     connection.commit()
     connection.close()
     audit(f"Grupo reflexivo formado: {group_name}", "grupo_reflexivo", group_id)
-    flash(f"{group_name} formado com {len(person_ids)} assistidos.")
+    flash(f"{group_name} formado com {len(eligible_people)} assistidos.")
     return redirect(url_for("grupos"))
 
 
@@ -3014,6 +3023,88 @@ def remover_participantes_grupo(group_id):
     message = f"{len(participant_ids)} participante(s) removido(s) do grupo."
     if wants_json:
         return jsonify(message=message, removed_ids=participant_ids, removed_count=len(participant_ids))
+    flash(message)
+    return redirect(url_for("grupos"))
+
+
+@app.route("/grupos/<int:group_id>/participantes/adicionar", methods=["POST"])
+def adicionar_participantes_grupo(group_id):
+    denial = admin_required()
+    if denial:
+        return denial
+    wants_json = request.accept_mimetypes.best == "application/json"
+    raw_person_ids = request.form.getlist("pessoa_id")
+    try:
+        person_ids = list(dict.fromkeys(int(person_id) for person_id in raw_person_ids))
+    except (TypeError, ValueError):
+        person_ids = []
+    if not person_ids:
+        message = "Selecione ao menos um assistido para adicionar ao grupo."
+        if wants_json:
+            return jsonify(error=message), 400
+        flash(message)
+        return redirect(url_for("grupos"))
+
+    connection = db()
+    group = connection.execute(
+        "SELECT id, nome FROM grupos_reflexivos WHERE id = ?", (group_id,)
+    ).fetchone()
+    if not group:
+        connection.close()
+        return jsonify(error="Grupo não encontrado."), 404
+
+    participants = []
+    for person_id in person_ids:
+        person = connection.execute(
+            "SELECT p.id, p.nome, p.processo, p.grupo_responsabilizacao FROM pessoas p "
+            "WHERE p.id = ? AND p.grupo_responsabilizacao <> '' "
+            "AND NOT EXISTS (SELECT 1 FROM grupo_participantes gp WHERE gp.pessoa_id = p.id)",
+            (person_id,),
+        ).fetchone()
+        if person:
+            participants.append(dict(person))
+    if len(participants) != len(person_ids):
+        connection.close()
+        message = "Um ou mais assistidos já pertencem a um grupo ou não podem ser selecionados."
+        if wants_json:
+            return jsonify(error=message), 400
+        flash(message)
+        return redirect(url_for("grupos"))
+
+    try:
+        connection.executemany(
+            "INSERT INTO grupo_participantes(grupo_id, pessoa_id) VALUES (?, ?)",
+            [(group_id, participant["id"]) for participant in participants],
+        )
+        connection.commit()
+    except (sqlite3.IntegrityError, IntegrityError):
+        connection.rollback()
+        connection.close()
+        message = "Um ou mais assistidos foram adicionados a outro grupo. Atualize a tela e tente novamente."
+        if wants_json:
+            return jsonify(error=message), 409
+        flash(message)
+        return redirect(url_for("grupos"))
+    participant_count = connection.execute(
+        "SELECT COUNT(*) AS total FROM grupo_participantes WHERE grupo_id = ?", (group_id,)
+    ).fetchone()["total"]
+    connection.close()
+    for participant in participants:
+        participant["url"] = url_for("pessoa", pid=participant["id"])
+        audit(
+            f"Assistido adicionado ao grupo reflexivo: {group['nome']}",
+            "grupo_reflexivo", group_id,
+            assistido_id=participant["id"], assistido_nome=participant["nome"],
+        )
+    message = f"{len(participants)} participante(s) adicionado(s) ao grupo."
+    if wants_json:
+        return jsonify(
+            message=message,
+            participants=participants,
+            added_count=len(participants),
+            participant_count=participant_count,
+            frequency_status_options=FREQUENCY_STATUS_OPTIONS,
+        )
     flash(message)
     return redirect(url_for("grupos"))
 

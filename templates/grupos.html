@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <h1>Grupos Reflexivos</h1>
-<p class="muted">Selecione até 20 assistidos para formar uma turma e acompanhe os 10 encontros nesta mesma tela.</p>
+<p class="muted">Selecione os assistidos para formar uma turma e acompanhe os 10 encontros nesta mesma tela.</p>
 
 {% if is_admin %}
 <div class="card">
@@ -12,9 +12,9 @@
 			<label>Nome do grupo (opcional)<input name="nome" placeholder="Ex.: Grupo reflexivo - setembro"></label>
 			<label>Tipo de grupo / tema<select id="select-tema-grupo"><option value="">Todos os tipos</option>{% for group_type in available_people|map(attribute='grupo_responsabilizacao')|unique|sort %}<option value="{{ group_type }}">{{ group_type }}</option>{% endfor %}</select></label>
 		</div>
-		<p class="muted"><span id="selected-count">0</span>/20 assistidos selecionados.</p>
+		<p class="muted"><span id="selected-count">0</span> assistidos selecionados.</p>
 		<div class="selection-list">
-		{% for person in available_people %}<label class="selection-item assistido-item" data-tema="{{ person.grupo_responsabilizacao }}"><input type="checkbox" name="pessoa_id" value="{{ person.id }}"><span><strong>{{ person.nome }}</strong><small>{{ person.processo or 'Sem processo' }}{% if person.grupo_responsabilizacao %} · {{ person.grupo_responsabilizacao }}{% endif %}</small></span></label>{% endfor %}
+		{% for person in available_people %}<label class="selection-item assistido-item" data-tema="{{ person.grupo_responsabilizacao }}" data-available-person-id="{{ person.id }}"><input type="checkbox" name="pessoa_id" value="{{ person.id }}"><span><strong>{{ person.nome }}</strong><small>{{ person.processo or 'Sem processo' }}{% if person.grupo_responsabilizacao %} · {{ person.grupo_responsabilizacao }}{% endif %}</small></span></label>{% endfor %}
 		</div>
 		<div class="actions"><button type="submit">Formar grupo</button></div>
 	</form>
@@ -24,7 +24,7 @@
 
 {% for group in groups %}
 <div class="card" data-group-card="{{ group.id }}">
-	<div class="group-heading"><div><h2>{{ group.nome }} <small>(<span data-group-participant-count>{{ group.participants|length }}</span>/20)</small></h2><p class="muted">Criado em {{ group.criado_em[:10] }} · {{ group.status }}</p></div><strong>{{ group.recorded_count }}/10 encontros registrados</strong></div>
+	<div class="group-heading"><div><h2>{{ group.nome }} <small>(<span data-group-participant-count>{{ group.participants|length }}</span> participantes)</small></h2><p class="muted">Criado em {{ group.criado_em[:10] }} · {{ group.status }}</p></div><strong>{{ group.recorded_count }}/10 encontros registrados</strong></div>
 	<div class="actions">
 		<button type="button" class="btn alt group-frequency-toggle" aria-expanded="false">Ver frequência dos participantes</button>
 	</div>
@@ -53,6 +53,15 @@
 				</div>
 				<div class="actions"><button type="submit" class="btn warning">Excluir selecionados</button></div>
 			</form>
+			<h3>Adicionar participantes</h3>
+			{% if available_people %}
+			<form method="post" action="{{ url_for('adicionar_participantes_grupo', group_id=group.id) }}" data-add-group-participants>
+				<div class="selection-list group-add-list">
+				{% for person in available_people %}<label class="selection-item" data-available-person-id="{{ person.id }}"><input type="checkbox" name="pessoa_id" value="{{ person.id }}"><span><strong>{{ person.nome }}</strong><small>{{ person.processo or 'Sem processo' }}{% if person.grupo_responsabilizacao %} · {{ person.grupo_responsabilizacao }}{% endif %}</small></span></label>{% endfor %}
+				</div>
+				<div class="actions"><button type="submit">Adicionar selecionados</button></div>
+			</form>
+			{% else %}<p class="muted" data-no-available-people>Não há assistidos disponíveis para adicionar.</p>{% endif %}
 		</div>
 	</div>{% endif %}
 	<div class="group-frequency-summary" hidden>
@@ -71,24 +80,23 @@
 			</div>
 		</label>
 	{% endif %}
-	<table><tr><th>Nome</th><th>Processo</th><th>Grupo de responsabilização</th>{% if is_admin %}<th>Frequência</th>{% endif %}</tr>
-	{% for person in group.participants %}<tr data-person-id="{{ person.pessoa_id }}"><td><a href="{{ url_for('pessoa', pid=person.pessoa_id) }}">{{ person.nome }}</a></td><td>{{ person.processo or '—' }}</td><td>{{ person.grupo_responsabilizacao or '—' }}</td>{% if is_admin %}<td><select name="frequencia_status_{{ person.pessoa_id }}" class="participant-status" data-person-id="{{ person.pessoa_id }}">{% set current = person.frequencies.get(group.last_encounter or 1) %}{% for option in frequency_status_options %}<option value="{{ option }}" {% if current and current.status == option %}selected{% endif %}>{{ option or 'Não registrado' }}</option>{% endfor %}</select></td>{% endif %}</tr>{% endfor %}</table>
+	<div class="table-scroll"><table><tr><th>Nome</th><th>Processo</th><th>Grupo de responsabilização</th>{% if is_admin %}<th>Frequência</th>{% endif %}</tr>
+	{% for person in group.participants %}<tr data-person-id="{{ person.pessoa_id }}"><td><a href="{{ url_for('pessoa', pid=person.pessoa_id) }}">{{ person.nome }}</a></td><td>{{ person.processo or '—' }}</td><td>{{ person.grupo_responsabilizacao or '—' }}</td>{% if is_admin %}<td><select name="frequencia_status_{{ person.pessoa_id }}" class="participant-status" data-person-id="{{ person.pessoa_id }}">{% set current = person.frequencies.get(group.last_encounter or 1) %}{% for option in frequency_status_options %}<option value="{{ option }}" {% if current and current.status == option %}selected{% endif %}>{{ option or 'Não registrado' }}</option>{% endfor %}</select></td>{% endif %}</tr>{% endfor %}</table></div>
 	{% if is_admin %}<div class="actions"><button type="submit">Salvar frequência do encontro</button><a class="btn alt print-frequency-link" href="{{ url_for('imprimir_frequencia_grupo', group_id=group.id, encontro=group.last_encounter or 1) }}" target="_blank">Imprimir lista de presença</a></div></form>{% endif %}
 </div>
 {% else %}<div class="card"><p class="muted">Nenhum grupo reflexivo formado.</p></div>{% endfor %}
 <script>
 	const checkboxes = [...document.querySelectorAll('#new-group-form input[type="checkbox"]')];
 	const counter = document.getElementById('selected-count');
-	const groupTypeFilter = document.getElementById('group-type-filter');
+	const groupTypeFilter = document.getElementById('select-tema-grupo');
 	const selectionItems = [...document.querySelectorAll('#new-group-form .selection-item')];
 	function applyGroupTypeFilter() {
 		const selectedType = groupTypeFilter?.value || '';
-		selectionItems.forEach((item) => { item.hidden = Boolean(selectedType && item.dataset.groupType !== selectedType); });
+		selectionItems.forEach((item) => { item.hidden = Boolean(selectedType && item.dataset.tema !== selectedType); });
 	}
 	function updateSelection() {
 		const total = checkboxes.filter((item) => item.checked).length;
 		if (counter) counter.textContent = total;
-		checkboxes.forEach((item) => { item.disabled = total >= 20 && !item.checked; });
 		applyGroupTypeFilter();
 	}
 	checkboxes.forEach((item) => item.addEventListener('change', updateSelection));

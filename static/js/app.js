@@ -205,6 +205,102 @@ document.addEventListener('DOMContentLoaded', () => {
 			}
 		});
 	});
+	document.querySelectorAll('[data-add-group-participants]').forEach((form) => {
+		form.addEventListener('submit', async (event) => {
+			event.preventDefault();
+			const selected = [...form.querySelectorAll('input[name="pessoa_id"]:checked')];
+			const editor = form.closest('.group-participant-removal');
+			const feedback = editor.querySelector('[data-group-participant-feedback]');
+			const showFeedback = (message, isError = false) => {
+				feedback.textContent = message;
+				feedback.hidden = false;
+				feedback.classList.toggle('is-error', isError);
+			};
+			if (!selected.length) {
+				showFeedback('Selecione ao menos um assistido para adicionar ao grupo.', true);
+				return;
+			}
+			const submitButton = form.querySelector('button[type="submit"]');
+			submitButton.disabled = true;
+			try {
+				const response = await fetch(form.action, {
+					method: 'POST',
+					headers: { Accept: 'application/json' },
+					body: new FormData(form),
+				});
+				const result = await response.json().catch(() => ({}));
+				if (!response.ok) throw new Error(result.error || 'Não foi possível adicionar os participantes.');
+				const groupCard = form.closest('[data-group-card]');
+				const count = groupCard.querySelector('[data-group-participant-count]');
+				count.textContent = result.participant_count;
+				const attendanceTable = groupCard.querySelector('.group-attendance-form table');
+				const summaryTable = groupCard.querySelector('.group-frequency-summary table');
+				const removalList = editor.querySelector('.group-participant-list');
+				groupCard.querySelector('[data-no-group-participants]')?.remove();
+				editor.querySelector('[data-no-available-people]')?.remove();
+				result.participants.forEach((person) => {
+					const personId = String(person.id);
+					const emptyAttendance = attendanceTable.querySelector('tr td[colspan]');
+					if (emptyAttendance) emptyAttendance.closest('tr').remove();
+					const row = attendanceTable.insertRow();
+					row.dataset.personId = personId;
+					const nameCell = row.insertCell();
+					const link = document.createElement('a');
+					link.href = person.url;
+					link.textContent = person.nome;
+					nameCell.append(link);
+					row.insertCell().textContent = person.processo || '—';
+					row.insertCell().textContent = person.grupo_responsabilizacao || '—';
+					const statusCell = row.insertCell();
+					const status = document.createElement('select');
+					status.name = `frequencia_status_${personId}`;
+					status.className = 'participant-status';
+					status.dataset.personId = personId;
+					result.frequency_status_options.forEach((value) => {
+						const option = document.createElement('option');
+						option.value = value;
+						option.textContent = value || 'Não registrado';
+						status.append(option);
+					});
+					statusCell.append(status);
+
+					const summaryRow = summaryTable.insertRow();
+					summaryRow.dataset.personId = personId;
+					const summaryName = summaryRow.insertCell();
+					const summaryLink = link.cloneNode();
+					summaryLink.textContent = person.nome;
+					summaryName.append(summaryLink);
+					for (let encounter = 0; encounter < 10; encounter += 1) {
+						summaryRow.insertCell().textContent = 'Não registrado';
+					}
+
+					const removalItem = document.createElement('label');
+					removalItem.className = 'selection-item group-removal-item';
+					removalItem.dataset.personId = personId;
+					const checkbox = document.createElement('input');
+					checkbox.type = 'checkbox';
+					checkbox.name = 'pessoa_id';
+					checkbox.value = personId;
+					const details = document.createElement('span');
+					const name = document.createElement('strong');
+					name.textContent = person.nome;
+					const meta = document.createElement('small');
+					meta.textContent = `${person.processo || 'Sem processo'}${person.grupo_responsabilizacao ? ` · ${person.grupo_responsabilizacao}` : ''}`;
+					details.append(name, meta);
+					removalItem.append(checkbox, details);
+					removalList.append(removalItem);
+
+					const availableSelector = `[data-available-person-id="${CSS.escape(personId)}"]`;
+					document.querySelectorAll(availableSelector).forEach((item) => item.remove());
+				});
+				showFeedback(result.message);
+			} catch (error) {
+				showFeedback(error.message || 'Não foi possível adicionar os participantes.', true);
+			} finally {
+				submitButton.disabled = false;
+			}
+		});
+	});
 	document.querySelectorAll('[data-message-delete][data-delete-url]').forEach((button) => {
 		button.addEventListener('click', async () => {
 			if (!window.confirm('Deseja excluir permanentemente este comunicado?')) return;
