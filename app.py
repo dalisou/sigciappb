@@ -1829,6 +1829,12 @@ def pessoas():
         return redirect(url_for("login"))
     query = request.args.get("q", "").strip()
     group = request.args.get("grupo", "")
+    sort_by = request.args.get("sort_by", "data_atendimento")
+    if sort_by not in {"data_atendimento", "criado_em"}:
+        sort_by = "data_atendimento"
+    sort_order = request.args.get("sort_order", "desc")
+    if sort_order not in {"asc", "desc"}:
+        sort_order = "desc"
     connection = db()
     tokens = query.split()
     if using_postgres() and tokens:
@@ -1871,10 +1877,15 @@ def pessoas():
     people = [dict(person, grupo_responsabilizacao=normalize_group_responsibility(person["grupo_responsabilizacao"])) for person in people]
     if group:
         people = [person for person in people if group_responsibility_key(person["grupo_responsabilizacao"]) == group]
+    people.sort(key=lambda person: (person[sort_by] or ""), reverse=sort_order == "desc")
+    people.sort(key=lambda person: not bool(person[sort_by]))
     group_names = sorted({person["grupo_responsabilizacao"] for person in people if person["grupo_responsabilizacao"]}, key=str.casefold)
     groups = [(group_responsibility_key(name), name) for name in group_names]
     connection.close()
-    return render_template("pessoas.html", people=people, groups=groups, query=query, group=group)
+    return render_template(
+        "pessoas.html", people=people, groups=groups, query=query, group=group,
+        sort_by=sort_by, sort_order=sort_order,
+    )
 
 
 @app.route("/pessoa/nova", methods=["GET", "POST"])
