@@ -2957,6 +2957,67 @@ def editar_grupo(group_id):
     return render_template("grupo_form.html", title="Editar grupo", group=group)
 
 
+@app.route("/grupos/<int:group_id>/participantes/remover", methods=["POST"])
+def remover_participantes_grupo(group_id):
+    denial = admin_required()
+    if denial:
+        return denial
+    wants_json = request.accept_mimetypes.best == "application/json"
+    person_ids = []
+    for value in request.form.getlist("pessoa_id"):
+        try:
+            person_ids.append(int(value))
+        except (TypeError, ValueError):
+            continue
+    person_ids = list(dict.fromkeys(person_ids))
+    if not person_ids:
+        message = "Selecione ao menos um participante para remover."
+        if wants_json:
+            return jsonify(error=message), 400
+        flash(message)
+        return redirect(url_for("grupos"))
+
+    connection = db()
+    group = connection.execute("SELECT nome FROM grupos_reflexivos WHERE id = ?", (group_id,)).fetchone()
+    if not group:
+        connection.close()
+        return jsonify(error="Grupo não encontrado."), 404
+    placeholders = ",".join("?" for _ in person_ids)
+    participants = connection.execute(
+        f"SELECT gp.pessoa_id, p.nome FROM grupo_participantes gp "
+        f"JOIN pessoas p ON p.id = gp.pessoa_id WHERE gp.grupo_id = ? "
+        f"AND gp.pessoa_id IN ({placeholders})",
+        [group_id, *person_ids],
+    ).fetchall()
+    if not participants:
+        connection.close()
+        message = "Nenhum dos participantes selecionados pertence a este grupo."
+        if wants_json:
+            return jsonify(error=message), 400
+        flash(message)
+        return redirect(url_for("grupos"))
+    participant_ids = [participant["pessoa_id"] for participant in participants]
+    participant_placeholders = ",".join("?" for _ in participant_ids)
+    connection.execute(
+        f"DELETE FROM grupo_participantes WHERE grupo_id = ? "
+        f"AND pessoa_id IN ({participant_placeholders})",
+        [group_id, *participant_ids],
+    )
+    connection.commit()
+    connection.close()
+    for participant in participants:
+        audit(
+            f"Assistido removido do grupo reflexivo: {group['nome']}",
+            "grupo_reflexivo", group_id,
+            assistido_id=participant["pessoa_id"], assistido_nome=participant["nome"],
+        )
+    message = f"{len(participant_ids)} participante(s) removido(s) do grupo."
+    if wants_json:
+        return jsonify(message=message, removed_ids=participant_ids, removed_count=len(participant_ids))
+    flash(message)
+    return redirect(url_for("grupos"))
+
+
 @app.route("/grupos/<int:group_id>/excluir", methods=["POST"])
 def excluir_grupo(group_id):
     denial = admin_required()

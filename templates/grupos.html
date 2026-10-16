@@ -23,8 +23,8 @@
 {% endif %}
 
 {% for group in groups %}
-<div class="card">
-	<div class="group-heading"><div><h2>{{ group.nome }} <small>({{ group.participants|length }}/20)</small></h2><p class="muted">Criado em {{ group.criado_em[:10] }} · {{ group.status }}</p></div><strong>{{ group.recorded_count }}/10 encontros registrados</strong></div>
+<div class="card" data-group-card="{{ group.id }}">
+	<div class="group-heading"><div><h2>{{ group.nome }} <small>(<span data-group-participant-count>{{ group.participants|length }}</span>/20)</small></h2><p class="muted">Criado em {{ group.criado_em[:10] }} · {{ group.status }}</p></div><strong>{{ group.recorded_count }}/10 encontros registrados</strong></div>
 	<div class="actions">
 		<button type="button" class="btn alt group-frequency-toggle" aria-expanded="false">Ver frequência dos participantes</button>
 	</div>
@@ -44,11 +44,21 @@
 				<button type="button" class="btn alt group-edit-cancel">Cancelar</button>
 			</div>
 		</form>
+		<div class="group-participant-removal">
+			<h3>Participantes atuais</h3>
+			<div class="document-feedback group-participant-feedback" data-group-participant-feedback hidden aria-live="polite"></div>
+			<form method="post" action="{{ url_for('remover_participantes_grupo', group_id=group.id) }}" data-remove-group-participants>
+				<div class="selection-list group-participant-list">
+				{% for person in group.participants %}<label class="selection-item group-removal-item" data-person-id="{{ person.pessoa_id }}"><input type="checkbox" name="pessoa_id" value="{{ person.pessoa_id }}"><span><strong>{{ person.nome }}</strong><small>{{ person.processo or 'Sem processo' }}{% if person.grupo_responsabilizacao %} · {{ person.grupo_responsabilizacao }}{% endif %}</small></span></label>{% else %}<p class="muted" data-no-group-participants>Este grupo ainda não possui participantes.</p>{% endfor %}
+				</div>
+				<div class="actions"><button type="submit" class="btn warning">Excluir selecionados</button></div>
+			</form>
+		</div>
 	</div>{% endif %}
 	<div class="group-frequency-summary" hidden>
 		<h3>Frequência dos participantes</h3>
 		<div class="table-scroll"><table><tr><th>Assistido</th>{% for encounter in range(1, 11) %}<th>{{ encounter }}º</th>{% endfor %}</tr>
-		{% for person in group.participants %}{% set absence_count = person.frequencies.values()|selectattr('status', 'equalto', 'Faltou')|list|length %}<tr class="{% if absence_count >= 3 %}frequency-absence-critical{% elif absence_count == 2 %}frequency-absence-warning{% endif %}"><td><a href="{{ url_for('pessoa', pid=person.pessoa_id) }}">{{ person.nome }}</a></td>{% for encounter in range(1, 11) %}{% set frequency = person.frequencies.get(encounter) %}<td>{{ frequency.status if frequency and frequency.status else 'Não registrado' }}</td>{% endfor %}</tr>{% endfor %}</table></div>
+		{% for person in group.participants %}{% set absence_count = person.frequencies.values()|selectattr('status', 'equalto', 'Faltou')|list|length %}<tr class="{% if absence_count >= 3 %}frequency-absence-critical{% elif absence_count == 2 %}frequency-absence-warning{% endif %}" data-person-id="{{ person.pessoa_id }}"><td><a href="{{ url_for('pessoa', pid=person.pessoa_id) }}">{{ person.nome }}</a></td>{% for encounter in range(1, 11) %}{% set frequency = person.frequencies.get(encounter) %}<td>{{ frequency.status if frequency and frequency.status else 'Não registrado' }}</td>{% endfor %}</tr>{% endfor %}</table></div>
 	</div>
 	{% if is_admin %}<form method="post" action="{{ url_for('salvar_frequencia_grupo', group_id=group.id) }}" class="group-attendance-form" data-history-url="{{ url_for('historico_frequencia_grupo', group_id=group.id) }}" data-frequencies='{{ group.frequency_data|tojson }}'>
 		<div class="grid attendance-toolbar"><label>Encontro<select name="encontro" class="encounter-select">{% for number in range(1, 11) %}<option value="{{ number }}" {% if number == (group.last_encounter or 1) %}selected{% endif %}>{{ number }}º encontro</option>{% endfor %}</select></label><label>Data<input type="date" name="data" class="encounter-date"></label><label>Horário<input type="time" name="horario" class="encounter-time"></label></div>
@@ -62,7 +72,7 @@
 		</label>
 	{% endif %}
 	<table><tr><th>Nome</th><th>Processo</th><th>Grupo de responsabilização</th>{% if is_admin %}<th>Frequência</th>{% endif %}</tr>
-	{% for person in group.participants %}<tr><td><a href="{{ url_for('pessoa', pid=person.pessoa_id) }}">{{ person.nome }}</a></td><td>{{ person.processo or '—' }}</td><td>{{ person.grupo_responsabilizacao or '—' }}</td>{% if is_admin %}<td><select name="frequencia_status_{{ person.pessoa_id }}" class="participant-status" data-person-id="{{ person.pessoa_id }}">{% set current = person.frequencies.get(group.last_encounter or 1) %}{% for option in frequency_status_options %}<option value="{{ option }}" {% if current and current.status == option %}selected{% endif %}>{{ option or 'Não registrado' }}</option>{% endfor %}</select></td>{% endif %}</tr>{% endfor %}</table>
+	{% for person in group.participants %}<tr data-person-id="{{ person.pessoa_id }}"><td><a href="{{ url_for('pessoa', pid=person.pessoa_id) }}">{{ person.nome }}</a></td><td>{{ person.processo or '—' }}</td><td>{{ person.grupo_responsabilizacao or '—' }}</td>{% if is_admin %}<td><select name="frequencia_status_{{ person.pessoa_id }}" class="participant-status" data-person-id="{{ person.pessoa_id }}">{% set current = person.frequencies.get(group.last_encounter or 1) %}{% for option in frequency_status_options %}<option value="{{ option }}" {% if current and current.status == option %}selected{% endif %}>{{ option or 'Não registrado' }}</option>{% endfor %}</select></td>{% endif %}</tr>{% endfor %}</table>
 	{% if is_admin %}<div class="actions"><button type="submit">Salvar frequência do encontro</button><a class="btn alt print-frequency-link" href="{{ url_for('imprimir_frequencia_grupo', group_id=group.id, encontro=group.last_encounter or 1) }}" target="_blank">Imprimir lista de presença</a></div></form>{% endif %}
 </div>
 {% else %}<div class="card"><p class="muted">Nenhum grupo reflexivo formado.</p></div>{% endfor %}

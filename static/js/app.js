@@ -145,6 +145,66 @@ document.addEventListener('DOMContentLoaded', () => {
 			}
 		});
 	});
+	document.querySelectorAll('[data-remove-group-participants]').forEach((form) => {
+		form.addEventListener('submit', async (event) => {
+			event.preventDefault();
+			const selected = [...form.querySelectorAll('input[name="pessoa_id"]:checked')];
+			const feedback = form.closest('.group-participant-removal').querySelector('[data-group-participant-feedback]');
+			const showFeedback = (message, isError = false) => {
+				feedback.textContent = message;
+				feedback.hidden = false;
+				feedback.classList.toggle('is-error', isError);
+			};
+			if (!selected.length) {
+				showFeedback('Selecione ao menos um participante para remover.', true);
+				return;
+			}
+			if (!window.confirm(`Deseja remover ${selected.length} participante(s) deste grupo?`)) return;
+			const submitButton = form.querySelector('button[type="submit"]');
+			submitButton.disabled = true;
+			try {
+				const response = await fetch(form.action, {
+					method: 'POST',
+					headers: { Accept: 'application/json' },
+					body: new FormData(form),
+				});
+				const result = await response.json().catch(() => ({}));
+				if (!response.ok) throw new Error(result.error || 'Não foi possível remover os participantes.');
+				const groupCard = form.closest('[data-group-card]');
+				const removedIds = new Set(result.removed_ids.map(String));
+				removedIds.forEach((personId) => {
+					groupCard.querySelectorAll(`[data-person-id="${personId}"]`).forEach((element) => element.remove());
+				});
+				const count = groupCard.querySelector('[data-group-participant-count]');
+				const remaining = Number(count.textContent) - result.removed_count;
+				count.textContent = remaining;
+				if (remaining === 0) {
+					const emptyRow = groupCard.querySelector('.group-attendance-form table').insertRow();
+					const emptyCell = emptyRow.insertCell();
+					emptyCell.colSpan = 4;
+					emptyCell.textContent = 'Este grupo ainda não possui participantes.';
+				}
+				const frequencyForm = groupCard.querySelector('.group-attendance-form');
+				if (frequencyForm) {
+					const records = JSON.parse(frequencyForm.dataset.frequencies);
+					removedIds.forEach((personId) => { delete records[personId]; });
+					frequencyForm.dataset.frequencies = JSON.stringify(records);
+				}
+				if (remaining === 0) {
+					const message = document.createElement('p');
+					message.className = 'muted';
+					message.dataset.noGroupParticipants = '';
+					message.textContent = 'Este grupo ainda não possui participantes.';
+					form.querySelector('.group-participant-list').replaceChildren(message);
+				}
+				showFeedback(result.message);
+			} catch (error) {
+				showFeedback(error.message || 'Não foi possível remover os participantes.', true);
+			} finally {
+				submitButton.disabled = false;
+			}
+		});
+	});
 	document.querySelectorAll('[data-message-delete][data-delete-url]').forEach((button) => {
 		button.addEventListener('click', async () => {
 			if (!window.confirm('Deseja excluir permanentemente este comunicado?')) return;
