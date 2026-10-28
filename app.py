@@ -491,7 +491,7 @@ def init_postgres_db():
     data_type = connection.execute(
         "SELECT data_type FROM information_schema.columns "
         "WHERE table_schema = current_schema() AND table_name = ? AND column_name = 'data'",
-        (),
+        ("disponibilidades",),
     ).fetchone()
     if data_type and data_type["data_type"] not in {"text", "character varying", "character"}:
         safe_schema_execute(
