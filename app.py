@@ -488,6 +488,16 @@ def init_postgres_db():
             connection,
             "ALTER TABLE disponibilidades ADD COLUMN IF NOT EXISTS data TEXT DEFAULT ''",
         )
+    data_type = connection.execute(
+        "SELECT data_type FROM information_schema.columns "
+        "WHERE table_schema = current_schema() AND table_name = ? AND column_name = 'data'",
+        (),
+    ).fetchone()
+    if data_type and data_type["data_type"] not in {"text", "character varying", "character"}:
+        safe_schema_execute(
+            connection,
+            "ALTER TABLE disponibilidades ALTER COLUMN data TYPE TEXT USING data::text",
+        )
     message_columns = table_columns(connection, "mensagens")
     if "arquivado" not in message_columns:
         safe_schema_execute(
@@ -2433,15 +2443,15 @@ def nova_disponibilidade():
             )
         availability_id = cursor.lastrowid
         connection.commit()
-    except Exception:
+    except Exception as error:
         if connection is not None:
             try:
                 connection.rollback()
             except Exception:
                 app.logger.exception("Falha ao reverter cadastro de disponibilidade")
         app.logger.exception(
-            "Falha ao cadastrar disponibilidade profissional=%s data=%s horario=%s-%s",
-            professional, availability_date, start_time, end_time,
+            "Falha ao cadastrar disponibilidade: %s; profissional=%s data=%s horario=%s-%s",
+            error, professional, availability_date, start_time, end_time,
         )
         flash("Não foi possível cadastrar a disponibilidade. O erro foi registrado para análise.")
         return redirect(url_for("agendamentos"))
