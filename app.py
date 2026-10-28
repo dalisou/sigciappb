@@ -477,6 +477,17 @@ def init_postgres_db():
     ]
     for statement in statements:
         connection.execute(statement)
+    availability_columns = table_columns(connection, "disponibilidades")
+    if "dia_mes" not in availability_columns:
+        safe_schema_execute(
+            connection,
+            "ALTER TABLE disponibilidades ADD COLUMN IF NOT EXISTS dia_mes INTEGER",
+        )
+    if "data" not in availability_columns:
+        safe_schema_execute(
+            connection,
+            "ALTER TABLE disponibilidades ADD COLUMN IF NOT EXISTS data TEXT DEFAULT ''",
+        )
     message_columns = table_columns(connection, "mensagens")
     if "arquivado" not in message_columns:
         safe_schema_execute(
@@ -2280,12 +2291,16 @@ def agendamentos():
     current_month = date.today().replace(day=1)
     for availability in availabilities:
         try:
-            available_date = (
-                date.fromisoformat(availability["data"])
-                if availability["data"]
-                else current_month.replace(day=availability["dia_mes"])
-            )
-        except ValueError:
+            stored_date = availability["data"]
+            if isinstance(stored_date, datetime):
+                available_date = stored_date.date()
+            elif isinstance(stored_date, date):
+                available_date = stored_date
+            elif stored_date:
+                available_date = date.fromisoformat(str(stored_date))
+            else:
+                available_date = current_month.replace(day=availability["dia_mes"])
+        except (TypeError, ValueError):
             continue
         dates = available_dates.setdefault(availability["profissional"], [])
         date_value = available_date.isoformat()
@@ -2371,33 +2386,52 @@ def nova_disponibilidade():
     try:
         selected_date = date.fromisoformat(availability_date)
         month_day = selected_date.day
-        valid_month_day = month_day in range(1, 32)
         valid_times = datetime.strptime(start_time, "%H:%M") < datetime.strptime(end_time, "%H:%M")
     except (TypeError, ValueError):
-        valid_month_day = False
+        selected_date = None
+        month_day = None
         valid_times = False
-    if professional not in PROFESSIONAL_KEYS or not valid_month_day or not valid_times:
+    if professional not in PROFESSIONAL_KEYS or selected_date is None or not valid_times:
         flash("Preencha profissional, dia e um intervalo de horário válido.")
         return redirect(url_for("agendamentos"))
-    connection = db()
-    availability_columns = table_columns(connection, "disponibilidades")
-    if "dia_semana" in availability_columns:
-        cursor = connection.execute(
-            "INSERT INTO disponibilidades(profissional, dia_semana, dia_mes, data, hora_inicio, hora_fim, criado_por, criado_em) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (professional, month_day, month_day, selected_date.isoformat(), start_time, end_time,
-             session["uid"], datetime.now().isoformat(timespec="seconds")),
+    connection = None
+    try:
+        connection = db()
+        availability_columns = table_columns(connection, "disponibilidades")
+        if "data" not in availability_columns:
+            raise RuntimeError("A coluna disponibilidades.data não existe; migração de schema pendente")
+        created_at = datetime.now().isoformat(timespec="seconds")
+        if "dia_semana" in availability_columns:
+            cursor = connection.execute(
+                "INSERT INTO disponibilidades(profissional, dia_semana, dia_mes, data, hora_inicio, hora_fim, criado_por, criado_em) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (professional, month_day, month_day, selected_date.isoformat(), start_time, end_time,
+                 session["uid"], created_at),
+            )
+        else:
+            cursor = connection.execute(
+                "INSERT INTO disponibilidades(profissional, dia_mes, data, hora_inicio, hora_fim, criado_por, criado_em) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (professional, month_day, selected_date.isoformat(), start_time, end_time,
+                 session["uid"], created_at),
+            )
+        availability_id = cursor.lastrowid
+        connection.commit()
+    except Exception:
+        if connection is not None:
+            try:
+                connection.rollback()
+            except Exception:
+                app.logger.exception("Falha ao reverter cadastro de disponibilidade")
+        app.logger.exception(
+            "Falha ao cadastrar disponibilidade profissional=%s data=%s horario=%s-%s",
+            professional, availability_date, start_time, end_time,
         )
-    else:
-        cursor = connection.execute(
-            "INSERT INTO disponibilidades(profissional, dia_mes, data, hora_inicio, hora_fim, criado_por, criado_em) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (professional, month_day, selected_date.isoformat(), start_time, end_time,
-             session["uid"], datetime.now().isoformat(timespec="seconds")),
-        )
-    availability_id = cursor.lastrowid
-    connection.commit()
-    connection.close()
+        flash("Não foi possível cadastrar a disponibilidade. O erro foi registrado para análise.")
+        return redirect(url_for("agendamentos"))
+    finally:
+        if connection is not None:
+            connection.close()
     audit(f"Disponibilidade cadastrada para {professional}, dia {month_day}, {start_time}-{end_time}",
           "disponibilidade", availability_id, tipo_acao="Agendamento")
     flash("Disponibilidade cadastrada com sucesso.")
