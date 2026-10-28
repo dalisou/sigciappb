@@ -2291,7 +2291,13 @@ def agendamentos():
     current_month = date.today().replace(day=1)
     for availability in availabilities:
         try:
-            stored_date = availability["data"]
+            stored_date = availability.get("data")
+        except (AttributeError, TypeError):
+            try:
+                stored_date = availability["data"]
+            except (KeyError, IndexError, TypeError):
+                stored_date = getattr(availability, "data", None)
+        try:
             if isinstance(stored_date, datetime):
                 available_date = stored_date.date()
             elif isinstance(stored_date, date):
@@ -2299,9 +2305,19 @@ def agendamentos():
             elif stored_date:
                 available_date = date.fromisoformat(str(stored_date))
             else:
-                available_date = current_month.replace(day=availability["dia_mes"])
+                try:
+                    legacy_day = availability.get("dia_mes")
+                except (AttributeError, TypeError):
+                    try:
+                        legacy_day = availability["dia_mes"]
+                    except (KeyError, IndexError, TypeError):
+                        legacy_day = getattr(availability, "dia_mes", None)
+                try:
+                    available_date = current_month.replace(day=int(legacy_day))
+                except (TypeError, ValueError):
+                    available_date = date.today()
         except (TypeError, ValueError):
-            continue
+            available_date = date.today()
         dates = available_dates.setdefault(availability["profissional"], [])
         date_value = available_date.isoformat()
         if date_value not in dates:
