@@ -2863,9 +2863,20 @@ def grupos():
             (frequency["grupo_id"], frequency["pessoa_id"]), {}
         )[frequency["encontro"]] = dict(frequency)
     groups = []
+    available_people_by_group = {}
     for group in group_rows:
         group_data = dict(group)
         group_data["participants"] = participants_by_group.get(group["id"], [])
+        group_types = {
+            participant["grupo_responsabilizacao"]
+            for participant in group_data["participants"]
+            if participant["grupo_responsabilizacao"]
+        }
+        group_type = next(iter(group_types)) if len(group_types) == 1 else None
+        available_people_by_group[group["id"]] = [
+            person for person in available_people
+            if group_type and person["grupo_responsabilizacao"] == group_type
+        ]
         for participant in group_data["participants"]:
             participant["frequencies"] = frequencies_by_participant.get(
                 (group["id"], participant["pessoa_id"]), {}
@@ -2887,7 +2898,8 @@ def grupos():
         group_data["recorded_count"] = len(registered)
         groups.append(group_data)
     return render_template(
-        "grupos.html", groups=groups, available_people=available_people, facilitators=facilitators
+        "grupos.html", groups=groups, available_people=available_people,
+        available_people_by_group=available_people_by_group, facilitators=facilitators
     )
 
 
@@ -3053,13 +3065,28 @@ def adicionar_participantes_grupo(group_id):
         connection.close()
         return jsonify(error="Grupo não encontrado."), 404
 
+    group_type = connection.execute(
+        "SELECT MIN(p.grupo_responsabilizacao) AS tipo, "
+        "COUNT(DISTINCT p.grupo_responsabilizacao) AS tipos "
+        "FROM grupo_participantes gp JOIN pessoas p ON p.id = gp.pessoa_id "
+        "WHERE gp.grupo_id = ? AND p.grupo_responsabilizacao <> ''",
+        (group_id,),
+    ).fetchone()
+    if not group_type or group_type["tipos"] != 1:
+        connection.close()
+        message = "Não é possível adicionar participantes: o grupo não possui um tipo único definido."
+        if wants_json:
+            return jsonify(error=message), 400
+        flash(message)
+        return redirect(url_for("grupos"))
+
     participants = []
     for person_id in person_ids:
         person = connection.execute(
             "SELECT p.id, p.nome, p.processo, p.grupo_responsabilizacao FROM pessoas p "
-            "WHERE p.id = ? AND p.grupo_responsabilizacao <> '' "
+            "WHERE p.id = ? AND p.grupo_responsabilizacao = ? "
             "AND NOT EXISTS (SELECT 1 FROM grupo_participantes gp WHERE gp.pessoa_id = p.id)",
-            (person_id,),
+            (person_id, group_type["tipo"]),
         ).fetchone()
         if person:
             participants.append(dict(person))
