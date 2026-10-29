@@ -1857,10 +1857,14 @@ def pessoas():
     query = request.args.get("q", "").strip()
     group = request.args.get("grupo", "")
     sort_by = request.args.get("sort_by", "data_atendimento")
-    if sort_by not in {"data_atendimento", "criado_em"}:
+    if sort_by not in {"data_atendimento", "criado_em", "nome"}:
         sort_by = "data_atendimento"
-    sort_order = request.args.get("sort_order", "desc")
-    if sort_order not in {"asc", "desc"}:
+    sort_order = request.args.get("sort_order", "az" if sort_by == "nome" else "desc")
+    if sort_order in {"az", "za"}:
+        sort_by = "nome"
+    elif sort_by == "nome":
+        sort_order = "az" if sort_order == "asc" else "za"
+    elif sort_order not in {"asc", "desc"}:
         sort_order = "desc"
     connection = db()
     tokens = query.split()
@@ -1904,8 +1908,17 @@ def pessoas():
     people = [dict(person, grupo_responsabilizacao=normalize_group_responsibility(person["grupo_responsabilizacao"])) for person in people]
     if group:
         people = [person for person in people if group_responsibility_key(person["grupo_responsabilizacao"]) == group]
-    people.sort(key=lambda person: (person[sort_by] or ""), reverse=sort_order == "desc")
-    people.sort(key=lambda person: not bool(person[sort_by]))
+    if sort_by == "nome":
+        people.sort(
+            key=lambda person: "".join(
+                character for character in unicodedata.normalize("NFKD", (person["nome"] or "").casefold())
+                if not unicodedata.combining(character)
+            ),
+            reverse=sort_order == "za",
+        )
+    else:
+        people.sort(key=lambda person: (person[sort_by] or ""), reverse=sort_order == "desc")
+        people.sort(key=lambda person: not bool(person[sort_by]))
     group_names = sorted({person["grupo_responsabilizacao"] for person in people if person["grupo_responsabilizacao"]}, key=str.casefold)
     groups = [(group_responsibility_key(name), name) for name in group_names]
     connection.close()
@@ -2905,10 +2918,14 @@ def grupos():
     filter_query = request.args.get("q", "").strip()
     filter_group = request.args.get("grupo", "")
     sort_by = request.args.get("sort_by", "data_atendimento")
-    if sort_by not in {"data_atendimento", "criado_em"}:
+    if sort_by not in {"data_atendimento", "criado_em", "nome"}:
         sort_by = "data_atendimento"
-    sort_order = request.args.get("sort_order", "desc")
-    if sort_order not in {"asc", "desc"}:
+    sort_order = request.args.get("sort_order", "az" if sort_by == "nome" else "desc")
+    if sort_order in {"az", "za"}:
+        sort_by = "nome"
+    elif sort_by == "nome":
+        sort_order = "az" if sort_order == "asc" else "za"
+    elif sort_order not in {"asc", "desc"}:
         sort_order = "desc"
     filter_scope = request.args.get("filter_scope", "create")
     if filter_scope not in {"create", "add"}:
@@ -2976,8 +2993,17 @@ def grupos():
                 person for person in result
                 if group_responsibility_key(person["grupo_responsabilizacao"]) == filter_group
             ]
-        result.sort(key=lambda person: (person[sort_by] or ""), reverse=sort_order == "desc")
-        result.sort(key=lambda person: not bool(person[sort_by]))
+        if sort_by == "nome":
+            result.sort(
+                key=lambda person: "".join(
+                    character for character in unicodedata.normalize("NFKD", (person["nome"] or "").casefold())
+                    if not unicodedata.combining(character)
+                ),
+                reverse=sort_order == "za",
+            )
+        else:
+            result.sort(key=lambda person: (person[sort_by] or ""), reverse=sort_order == "desc")
+            result.sort(key=lambda person: not bool(person[sort_by]))
         return result
 
     available_people = (
