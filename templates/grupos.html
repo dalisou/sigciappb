@@ -6,15 +6,24 @@
 {% if is_admin %}
 <div class="card">
 	<h2>Formar Novo Grupo</h2>
-	{% if available_people %}
+	{% if eligible_people_count %}
+	<form method="get" action="{{ url_for('grupos') }}" class="grid group-filter-form" data-group-filter-form>
+		<input type="hidden" name="filter_scope" value="create">
+		<label>Busca<input type="search" name="q" value="{{ filter_query if filter_scope == 'create' else '' }}" placeholder="Nome ou processo"></label>
+		<label>Grupo<select name="grupo"><option value="">Todos</option>{% for item in available_groups %}<option value="{{ item[0] }}" {% if filter_scope == 'create' and filter_group == item[0] %}selected{% endif %}>{{ item[1] }}</option>{% endfor %}</select></label>
+		<label>Ordenar por<select name="sort_by"><option value="data_atendimento" {% if filter_scope != 'create' or sort_by == 'data_atendimento' %}selected{% endif %}>Data do atendimento</option><option value="criado_em" {% if filter_scope == 'create' and sort_by == 'criado_em' %}selected{% endif %}>Data do cadastro</option></select></label>
+		<label>Ordem<select name="sort_order"><option value="asc" {% if filter_scope == 'create' and sort_order == 'asc' %}selected{% endif %}>Do mais antigo para o mais recente</option><option value="desc" {% if filter_scope != 'create' or sort_order == 'desc' %}selected{% endif %}>Do mais recente para o mais antigo</option></select></label>
+		<div class="actions"><button type="submit">Filtrar</button></div>
+		<div data-selected-ids>{% if filter_scope == 'create' %}{% for person_id in selected_ids %}<input type="hidden" name="selected_id" value="{{ person_id }}">{% endfor %}{% endif %}</div>
+	</form>
 	<form method="post" action="{{ url_for('formar_grupo') }}" id="new-group-form">
 		<div class="grid">
 			<label>Nome do grupo (opcional)<input name="nome" placeholder="Ex.: Grupo reflexivo - setembro"></label>
-			<label>Tipo de grupo / tema<select id="select-tema-grupo"><option value="">Todos os tipos</option>{% for group_type in available_people|map(attribute='grupo_responsabilizacao')|unique|sort %}<option value="{{ group_type }}">{{ group_type }}</option>{% endfor %}</select></label>
 		</div>
+		{% for person_id in selected_ids %}{% if person_id not in available_person_ids %}<input type="hidden" name="pessoa_id" value="{{ person_id }}">{% endif %}{% endfor %}
 		<p class="muted"><span id="selected-count">0</span> assistidos selecionados.</p>
 		<div class="selection-list">
-		{% for person in available_people %}<label class="selection-item assistido-item" data-tema="{{ person.grupo_responsabilizacao }}" data-available-person-id="{{ person.id }}"><input type="checkbox" name="pessoa_id" value="{{ person.id }}"><span><strong>{{ person.nome }}</strong><small>{{ person.processo or 'Sem processo' }}{% if person.grupo_responsabilizacao %} · {{ person.grupo_responsabilizacao }}{% endif %}</small></span></label>{% endfor %}
+		{% for person in available_people %}<label class="selection-item assistido-item" data-available-person-id="{{ person.id }}"><input type="checkbox" name="pessoa_id" value="{{ person.id }}" {% if person.id in selected_ids %}checked{% endif %}><span><strong>{{ person.nome }}</strong><small>{{ person.processo or 'Sem processo' }}{% if person.grupo_responsabilizacao %} · {{ person.grupo_responsabilizacao }}{% endif %}</small></span></label>{% else %}<p class="muted">Nenhum assistido corresponde aos filtros.</p>{% endfor %}
 		</div>
 		<div class="actions"><button type="submit">Formar grupo</button></div>
 	</form>
@@ -23,7 +32,7 @@
 {% endif %}
 
 {% for group in groups %}
-<div class="card" data-group-card="{{ group.id }}">
+<div class="card" id="group-{{ group.id }}" data-group-card="{{ group.id }}">
 	<div class="group-heading"><div><h2>{{ group.nome }} <small>(<span data-group-participant-count>{{ group.participants|length }}</span> participantes)</small></h2><p class="muted">Criado em {{ group.criado_em[:10] }} · {{ group.status }}</p></div><strong>{{ group.recorded_count }}/10 encontros registrados</strong></div>
 	<div class="actions">
 		<button type="button" class="btn alt group-frequency-toggle" aria-expanded="false">Ver frequência dos participantes</button>
@@ -34,7 +43,7 @@
 			<button class="btn warning" type="submit">Excluir</button>
 		</form>
 	</div>
-	<div class="group-inline-edit" hidden>
+	<div class="group-inline-edit" {% if filter_scope == 'add' and filter_group_id == group.id %}data-filter-expanded="true"{% else %}hidden{% endif %}>
 		<form method="post" action="{{ url_for('editar_grupo', group_id=group.id) }}">
 			<div class="grid">
 				<label>Nome do grupo<input name="nome" value="{{ group.nome }}" required></label>
@@ -53,8 +62,18 @@
 				</div>
 				<div class="actions"><button type="submit" class="btn warning">Excluir selecionados</button></div>
 			</form>
-			<h3>Adicionar participantes</h3>
+			<h3 id="group-add-{{ group.id }}">Adicionar participantes</h3>
 			{% set group_available_people = available_people_by_group.get(group.id, []) %}
+			{% set add_filter_active = filter_scope == 'add' and filter_group_id == group.id %}
+			<form method="get" action="{{ url_for('grupos') }}#group-add-{{ group.id }}" class="grid group-filter-form" data-group-filter-form>
+				<input type="hidden" name="filter_scope" value="add">
+				<input type="hidden" name="group_id" value="{{ group.id }}">
+				<label>Busca<input type="search" name="q" value="{{ filter_query if add_filter_active else '' }}" placeholder="Nome ou processo"></label>
+				<label>Grupo<select name="grupo"><option value="">Todos</option>{% for item in available_groups %}<option value="{{ item[0] }}" {% if add_filter_active and filter_group == item[0] %}selected{% endif %}>{{ item[1] }}</option>{% endfor %}</select></label>
+				<label>Ordenar por<select name="sort_by"><option value="data_atendimento" {% if not add_filter_active or sort_by == 'data_atendimento' %}selected{% endif %}>Data do atendimento</option><option value="criado_em" {% if add_filter_active and sort_by == 'criado_em' %}selected{% endif %}>Data do cadastro</option></select></label>
+				<label>Ordem<select name="sort_order"><option value="asc" {% if add_filter_active and sort_order == 'asc' %}selected{% endif %}>Do mais antigo para o mais recente</option><option value="desc" {% if not add_filter_active or sort_order == 'desc' %}selected{% endif %}>Do mais recente para o mais antigo</option></select></label>
+				<div class="actions"><button type="submit">Filtrar</button></div>
+			</form>
 			{% if group_available_people %}
 			<form method="post" action="{{ url_for('adicionar_participantes_grupo', group_id=group.id) }}" data-add-group-participants>
 				<div class="selection-list group-add-list">
@@ -62,7 +81,7 @@
 				</div>
 				<div class="actions"><button type="submit">Adicionar selecionados</button></div>
 			</form>
-			{% else %}<p class="muted" data-no-available-people>Não há assistidos disponíveis para adicionar.</p>{% endif %}
+			{% else %}<p class="muted" data-no-available-people>Não há assistidos disponíveis para os filtros atuais.</p>{% endif %}
 		</div>
 	</div>{% endif %}
 	<div class="group-frequency-summary" hidden>
@@ -89,24 +108,29 @@
 <script>
 	const checkboxes = [...document.querySelectorAll('#new-group-form input[type="checkbox"]')];
 	const counter = document.getElementById('selected-count');
-	const groupTypeFilter = document.getElementById('select-tema-grupo');
-	const selectionItems = [...document.querySelectorAll('#new-group-form .selection-item')];
-	function applyGroupTypeFilter() {
-		const selectedType = groupTypeFilter?.value || '';
-		selectionItems.forEach((item) => { item.hidden = Boolean(selectedType && item.dataset.tema !== selectedType); });
-	}
+	const selectionFilterForm = document.querySelector('#new-group-form')?.previousElementSibling;
+	const selectedIds = new Set([...(selectionFilterForm?.querySelectorAll('input[name="selected_id"]') || [])].map((input) => input.value));
 	function updateSelection() {
-		const total = checkboxes.filter((item) => item.checked).length;
-		if (counter) counter.textContent = total;
-		applyGroupTypeFilter();
+		checkboxes.forEach((item) => item.checked ? selectedIds.add(item.value) : selectedIds.delete(item.value));
+		if (counter) counter.textContent = selectedIds.size;
+		const selectedIdContainer = selectionFilterForm?.querySelector('[data-selected-ids]');
+		if (selectedIdContainer) {
+			selectedIdContainer.replaceChildren(...[...selectedIds].map((personId) => {
+				const input = document.createElement('input');
+				input.type = 'hidden';
+				input.name = 'selected_id';
+				input.value = personId;
+				return input;
+			}));
+		}
 	}
 	checkboxes.forEach((item) => item.addEventListener('change', updateSelection));
-	groupTypeFilter?.addEventListener('change', updateSelection);
 	updateSelection();
 	document.querySelectorAll('.group-edit-toggle').forEach((button) => {
 		const card = button.closest('.card');
 		const editBox = card.querySelector('.group-inline-edit');
 		const cancelButton = card.querySelector('.group-edit-cancel');
+		if (editBox.dataset.filterExpanded === 'true') button.textContent = 'Cancelar edição';
 		button.addEventListener('click', () => {
 			const shouldShow = editBox.hidden;
 			editBox.hidden = !shouldShow;

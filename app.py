@@ -2902,11 +2902,33 @@ def declaracao_comparecimento(pid):
 def grupos():
     if not authenticated():
         return redirect(url_for("login"))
+    filter_query = request.args.get("q", "").strip()
+    filter_group = request.args.get("grupo", "")
+    sort_by = request.args.get("sort_by", "data_atendimento")
+    if sort_by not in {"data_atendimento", "criado_em"}:
+        sort_by = "data_atendimento"
+    sort_order = request.args.get("sort_order", "desc")
+    if sort_order not in {"asc", "desc"}:
+        sort_order = "desc"
+    filter_scope = request.args.get("filter_scope", "create")
+    if filter_scope not in {"create", "add"}:
+        filter_scope = "create"
+    try:
+        filter_group_id = int(request.args.get("group_id", ""))
+    except (TypeError, ValueError):
+        filter_group_id = None
+    selected_ids = []
+    for selected_id in request.args.getlist("selected_id"):
+        try:
+            selected_ids.append(int(selected_id))
+        except (TypeError, ValueError):
+            continue
+    selected_ids = list(dict.fromkeys(selected_ids)) if filter_scope == "create" else []
     connection = db()
-    available_people = connection.execute(
-        "SELECT id, nome, processo, grupo_responsabilizacao FROM pessoas "
+    eligible_people = connection.execute(
+        "SELECT id, nome, cpf, processo, grupo_responsabilizacao, data_atendimento, criado_em FROM pessoas "
         "WHERE grupo_responsabilizacao <> '' AND id NOT IN "
-        "(SELECT pessoa_id FROM grupo_participantes) ORDER BY nome"
+        "(SELECT pessoa_id FROM grupo_participantes)"
     ).fetchall()
     group_rows = connection.execute(
         "SELECT id, nome, status, criado_em FROM grupos_reflexivos ORDER BY id DESC"
@@ -2924,6 +2946,45 @@ def grupos():
         "SELECT nome, cargo FROM users WHERE ativo = 1 AND status = 'aprovado' ORDER BY nome"
     ).fetchall()
     connection.close()
+    eligible_people = [
+        dict(person, grupo_responsabilizacao=normalize_group_responsibility(person["grupo_responsabilizacao"]))
+        for person in eligible_people
+    ]
+    group_names = sorted(
+        {person["grupo_responsabilizacao"] for person in eligible_people if person["grupo_responsabilizacao"]},
+        key=str.casefold,
+    )
+    available_groups = [(group_responsibility_key(name), name) for name in group_names]
+
+    def filter_and_sort_people(people):
+        result = list(people)
+        tokens = filter_query.split()
+        if tokens:
+            def search_key(value):
+                normalized = unicodedata.normalize("NFKD", (value or "").casefold())
+                return "".join(character for character in normalized if not unicodedata.combining(character))
+
+            normalized_tokens = [search_key(token) for token in tokens]
+            clean_query = re.sub(r"[./-]", "", search_key(filter_query))
+            result = [
+                person for person in result
+                if all(token in search_key(person["nome"]) for token in normalized_tokens)
+                or (clean_query and clean_query in re.sub(r"[./-]", "", search_key(person["processo"])))
+            ]
+        if filter_group:
+            result = [
+                person for person in result
+                if group_responsibility_key(person["grupo_responsabilizacao"]) == filter_group
+            ]
+        result.sort(key=lambda person: (person[sort_by] or ""), reverse=sort_order == "desc")
+        result.sort(key=lambda person: not bool(person[sort_by]))
+        return result
+
+    available_people = (
+        filter_and_sort_people(eligible_people)
+        if filter_scope == "create"
+        else list(eligible_people)
+    )
     participants_by_group = {}
     for participant in participant_rows:
         participants_by_group.setdefault(participant["grupo_id"], []).append(dict(participant))
@@ -2943,10 +3004,13 @@ def grupos():
             if participant["grupo_responsabilizacao"]
         }
         group_type = next(iter(group_types)) if len(group_types) == 1 else None
-        available_people_by_group[group["id"]] = [
+        group_available_people = [
             person for person in available_people
             if group_type and person["grupo_responsabilizacao"] == group_type
         ]
+        if filter_scope == "add" and filter_group_id == group["id"]:
+            group_available_people = filter_and_sort_people(group_available_people)
+        available_people_by_group[group["id"]] = group_available_people
         for participant in group_data["participants"]:
             participant["frequencies"] = frequencies_by_participant.get(
                 (group["id"], participant["pessoa_id"]), {}
@@ -2969,7 +3033,12 @@ def grupos():
         groups.append(group_data)
     return render_template(
         "grupos.html", groups=groups, available_people=available_people,
-        available_people_by_group=available_people_by_group, facilitators=facilitators
+        available_people_by_group=available_people_by_group, facilitators=facilitators,
+        available_groups=available_groups, eligible_people_count=len(eligible_people),
+        filter_query=filter_query, filter_group=filter_group, sort_by=sort_by,
+        sort_order=sort_order, filter_scope=filter_scope, filter_group_id=filter_group_id,
+        selected_ids=selected_ids,
+        available_person_ids=[person["id"] for person in available_people],
     )
 
 
