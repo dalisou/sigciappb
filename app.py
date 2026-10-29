@@ -205,10 +205,13 @@ FIELDS = [
     "telefone", "data_atendimento", "raca", "sexo", "identidade_genero", "estado_civil", "orientacao_sexual",
     "escolaridade", "pcd", "tipo_deficiencia", "nacionalidade", "pais", "ocupacao", "profissao",
     "religiao", "diploma_legal", "artigo", "tipo_penal", "grupamento_penal", "natureza_atendimento",
-    "medida", "grupo_responsabilizacao", "status", "atendimento_individual", "comparecimento",
+    "medida", "grupo_responsabilizacao", "grupo_externo_opcao", "grupo_externo_especificacao",
+    "status", "atendimento_individual", "comparecimento",
     "termino_medida", "situacao_final", "observacoes", "prestacao_servico_comunitario",
+    "prestacao_horas_totais", "prestacao_horas_semanais",
     "local_prestacao_servico", "grupo_reflexivo", "tipo_grupo_reflexivo",
 ]
+PERSON_INTEGER_FIELDS = {"prestacao_horas_totais", "prestacao_horas_semanais"}
 GROUP_STATUS_OPTIONS = ["Em andamento", "Concluiu", "Desistiu", "Eliminado - refazer grupo"]
 FREQUENCY_STATUS_OPTIONS = ["", "Presente", "Faltou"]
 GROUP_RESPONSIBILITY_LABELS = {
@@ -223,8 +226,10 @@ LABELS = dict(zip(FIELDS, [
     "Orientação Sexual (autodeclaração)", "Escolaridade", "Pessoa com Deficiência", "Tipo de Deficiência",
     "Nacionalidade", "País", "Ocupação", "Profissão", "Religião", "Diploma Legal", "Artigo/Capitulação",
     "Tipo Penal", "Grupamento Penal", "Natureza do Atendimento", "Tipo de Medida/Alternativa",
-    "Grupo de Responsabilização", "Status do Atendimento", "Atendimento Individual", "Comparecimento Voluntário",
+    "Grupo de Responsabilização", "Participação em Grupos de Responsabilização Externos",
+    "Especifique o órgão externo", "Status do Atendimento", "Atendimento Individual", "Comparecimento Voluntário",
     "Data de Término da Medida", "Situação Final", "Observação/Justificativas", "Prestação de Serviço Comunitário",
+    "Total de Horas da Prestação de Serviço", "Quantidade de Horas Semanais",
     "Local da Prestação de Serviço", "Grupo Reflexivo", "Tipo de Grupo Reflexivo",
 ]))
 
@@ -246,6 +251,7 @@ SELECT_OPTIONS = {
     "natureza_atendimento": ["1º Atendimento Técnico Multidisciplinar", "Acolhimento Inicial (comparecimento)", "Agendamento"],
     "medida": ["Acordo de não Persecução Penal", "Conciliação", "Medida Cautelar diversa da prisão", "Outras modalidades", "Penas restritivas de direito", "SCP", "SURSIS"],
     "grupo_responsabilizacao": ["Alteridade, Raça e Direitos Humanos", "Combate ao preconceito", "Conscientização sobre Bens Públicos e Privados", "Dignidade Sexual e Alteridade", "Direitos Humanos, Diversidade e Relações Étnico-Raciais", "Direitos Humanos, Proteção à Infância e Cidadania", "Drogas e suas transversalidades", "Gênero e Alteridade: Coexistência Feminina", "Gênero, Vínculos e Alteridade", "Gênero/Sexualidade", "Gênero/Vínculos/Alteridade", "Homens autores de violência doméstica contra mulher", "Meio Ambiente, Sustentabilidade e Ecologia Familiar", "Meio Ambiente, Sustentabilidade e Proteção Comunitária", "Orientação Cívica", "Orientação Cívica ou Temático de Segurança", "Parentalidade e Direitos Humanos", "Parentalidade e Responsabilidade Familiar", "Segurança Comunitária e Paz Pública", "Trânsito/Vida", "Ética/Cidadania"],
+    "grupo_externo_opcao": ["Não possui", "Defensoria Pública", "Outro órgão"],
     "status": ["Realizado com Sucesso", "Não Realizado"],
     "atendimento_individual": ["Assistente Social", "Jurídico", "Psicólogo"],
     "comparecimento": ["Sim", "Não"],
@@ -409,7 +415,10 @@ def backfill_legacy_audit_links(connection):
 
 def init_postgres_db():
     connection = db()
-    field_sql = ", ".join(f'"{field}" TEXT' for field in FIELDS)
+    field_sql = ", ".join(
+        f'"{field}" {"INTEGER" if field in PERSON_INTEGER_FIELDS else "TEXT"}'
+        for field in FIELDS
+    )
     attendance_sql = ", ".join(f'"{field}" TEXT' for field in ATTENDANCE_FIELDS)
     statements = [
         """CREATE TABLE IF NOT EXISTS users (
@@ -547,6 +556,14 @@ def init_postgres_db():
                 connection,
                 f'ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS "{field}" TEXT DEFAULT \'\'',
             )
+    person_columns = table_columns(connection, "pessoas")
+    for field in FIELDS:
+        if field not in person_columns:
+            field_type = "INTEGER" if field in PERSON_INTEGER_FIELDS else "TEXT"
+            safe_schema_execute(
+                connection,
+                f'ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS "{field}" {field_type}',
+            )
     group_frequency_columns = table_columns(connection, "grupo_frequencias")
     if "horario" not in group_frequency_columns:
         safe_schema_execute(
@@ -652,7 +669,10 @@ def init_db():
                 criado_em TEXT NOT NULL, resolvido_em TEXT DEFAULT ''
             );
         """ % (
-            ", ".join(f"{field} TEXT" for field in FIELDS),
+            ", ".join(
+                f'{field} {"INTEGER" if field in PERSON_INTEGER_FIELDS else "TEXT"}'
+                for field in FIELDS
+            ),
             ", ".join(f"{field} TEXT" for field in ATTENDANCE_FIELDS),
         )
     )
@@ -671,6 +691,11 @@ def init_db():
     ):
         if field not in columns:
             connection.execute(f'ALTER TABLE pessoas ADD COLUMN {field} TEXT DEFAULT ""')
+    columns = table_columns(connection, "pessoas")
+    for field in FIELDS:
+        if field not in columns:
+            field_type = "INTEGER" if field in PERSON_INTEGER_FIELDS else "TEXT"
+            connection.execute(f'ALTER TABLE pessoas ADD COLUMN "{field}" {field_type}')
     availability_columns = table_columns(connection, "disponibilidades")
     if "dia_mes" not in availability_columns:
         connection.execute("ALTER TABLE disponibilidades ADD COLUMN dia_mes INTEGER")
@@ -915,6 +940,31 @@ def parse_selected_articles(value):
 def person_form_values():
     values = [request.form.get(field, "") for field in FIELDS]
 
+    for field in PERSON_INTEGER_FIELDS:
+        value_index = FIELDS.index(field)
+        raw_value = request.form.get(field, "").strip()
+        if not raw_value:
+            values[value_index] = None
+            continue
+        try:
+            numeric_value = int(raw_value)
+        except ValueError as error:
+            raise ValueError(f"{LABELS[field]} deve ser um número inteiro.") from error
+        if numeric_value < 0:
+            raise ValueError(f"{LABELS[field]} não pode ser negativa.")
+        values[value_index] = numeric_value
+
+    external_group_option = request.form.get("grupo_externo_opcao", "")
+    if external_group_option not in SELECT_OPTIONS["grupo_externo_opcao"] and external_group_option:
+        raise ValueError("Selecione uma opção válida para grupos de responsabilização externos.")
+    values[FIELDS.index("grupo_externo_opcao")] = external_group_option
+    external_group_specification = request.form.get("grupo_externo_especificacao", "").strip()
+    if external_group_option == "Outro órgão" and not external_group_specification:
+        raise ValueError("Informe o nome ou local do órgão externo.")
+    values[FIELDS.index("grupo_externo_especificacao")] = (
+        external_group_specification if external_group_option == "Outro órgão" else ""
+    )
+
     disability_index = FIELDS.index("tipo_deficiencia")
     disability_option = request.form.get("tipo_deficiencia_opcao", "")
     if disability_option in {"Outra(s) Deficiência(s)", "Outros"}:
@@ -950,6 +1000,8 @@ def person_form_values():
     location_index = FIELDS.index("local_prestacao_servico")
     if values[service_index] != "Sim":
         values[location_index] = ""
+        values[FIELDS.index("prestacao_horas_totais")] = None
+        values[FIELDS.index("prestacao_horas_semanais")] = None
 
     group_index = FIELDS.index("grupo_reflexivo")
     group_type_index = FIELDS.index("tipo_grupo_reflexivo")
@@ -1935,7 +1987,15 @@ def nova():
         return denial
     if request.method == "POST":
         connection = db()
-        values = person_form_values()
+        try:
+            values = person_form_values()
+        except ValueError as error:
+            connection.close()
+            flash(str(error))
+            return render_template(
+                "pessoa_form.html", title="Novo cadastro", artigos_selecionados=submitted_articles(),
+                lista_opcoes_artigos=ARTICLE_OPTIONS, submitted_values=request.form,
+            )
         duplicate = find_duplicate_person(connection, values)
         if duplicate:
             connection.close()
@@ -1988,7 +2048,17 @@ def editar_pessoa(pid):
         connection.close()
         return "Não encontrado", 404
     if request.method == "POST":
-        values = person_form_values()
+        try:
+            values = person_form_values()
+        except ValueError as error:
+            connection.close()
+            flash(str(error))
+            return render_template(
+                "pessoa_form.html", title="Editar cadastro", person=person,
+                documents=document_entries(person["documentos"]),
+                artigos_selecionados=submitted_articles(),
+                lista_opcoes_artigos=ARTICLE_OPTIONS, submitted_values=request.form,
+            )
         changed_fields = [
             LABELS.get(field, field)
             for field, value in zip(FIELDS, values)
