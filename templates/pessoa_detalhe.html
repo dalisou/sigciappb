@@ -16,13 +16,6 @@
 		<div><label>{{ labels[field] }}</label><div>{{ person[field] or '—' }}</div></div>
 		{% endfor %}
 	</div>
-	<div class="appointment-attendance-panel">
-		<h3>Comparecimento aos agendamentos</h3>
-		{% if appointments %}{% for item in appointments %}<div class="appointment-attendance-row {% if item.status == 'Faltou' %}appointment-missed{% endif %}">
-			<div><strong>{{ item.data }} às {{ item.hora }}</strong><br><span class="muted">{{ item.profissional }} · Status: {{ item.status or 'Agendado' }}</span></div>
-			<div class="status-actions"><form method="post" action="{{ url_for('atualizar_status_agendamento', appointment_id=item.id) }}"><input type="hidden" name="status" value="Compareceu"><button class="btn" type="submit">Compareceu</button></form><form method="post" action="{{ url_for('atualizar_status_agendamento', appointment_id=item.id) }}"><input type="hidden" name="status" value="Faltou"><label class="absence-note">Observação da falta<textarea name="observacao_falta" rows="2" placeholder="Motivo ou justificativa da falta"></textarea></label><button class="btn warning" type="submit">Faltou</button></form></div>
-		</div>{% endfor %}{% else %}<p class="muted">Nenhum agendamento registrado para este assistido.</p>{% endif %}
-	</div>
 </div>
 <div class="card">
 	<h2>Frequência dos 10 encontros</h2>
