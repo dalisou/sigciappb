@@ -73,7 +73,7 @@
 <div class="card">
 	<h2>Histórico de Atendimentos Multidisciplinares</h2>
 	{% if attendances %}<div class="table-scroll"><table><tr><th>Data</th><th>Profissional</th><th>Conclusão</th><th>Ações</th></tr>
-	{% for item in attendances %}<tr><td>{{ item.data_atendimento or item.data or '—' }}</td><td>{{ item.profissional_nome_cargo or item.profissional or '—' }}</td><td>{{ item.conclusao or '—' }}</td><td><a class="btn" href="{{ url_for('visualizar_atendimento', aid=item.id) }}">Visualizar</a> <a class="btn alt" href="{{ url_for('editar_atendimento', aid=item.id) }}">Editar</a></td></tr>{% endfor %}
+	{% for item in attendances %}<tr><td>{{ item.data_atendimento or item.data or '—' }}</td><td>{{ item.profissional_nome_cargo or item.profissional or '—' }}</td><td>{{ item.conclusao or '—' }}</td><td><a class="btn" href="{{ url_for('visualizar_atendimento', aid=item.id) }}">Visualizar</a>{% if item.id in editable_attendance_ids %} <a class="btn alt" href="{{ url_for('editar_atendimento', aid=item.id) }}">Editar</a>{% endif %}</td></tr>{% endfor %}
 	</table></div>{% else %}<p class="muted">Nenhum atendimento multidisciplinar registrado.</p>{% endif %}
 </div>
 <section class="card" aria-labelledby="activity-history-title">

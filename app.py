@@ -1090,6 +1090,14 @@ def is_admin():
     return authenticated() and session.get("perfil") == "administrador"
 
 
+def can_edit_attendance(attendance):
+    if is_admin():
+        return True
+    return authenticated() \
+        and session.get("perfil") in MULTIDISCIPLINARY_PROFILES \
+        and attendance["criado_por"] == session.get("uid")
+
+
 def admin_required():
     if not authenticated():
         return redirect(url_for("login"))
@@ -2328,11 +2336,14 @@ def pessoa(pid):
     connection.close()
     if not person:
         return "Não encontrado", 404
+    editable_attendance_ids = {
+        item["id"] for item in attendances if can_edit_attendance(item)
+    }
     return render_template(
         "pessoa_detalhe.html", person=person, attendances=attendances, frequencies=frequencies,
         appointments=appointments, missed_appointments=missed_appointments,
         scheduling_alerts=scheduling_alerts, documents=document_entries(person["documentos"]),
-        activity_history=activity_history,
+        activity_history=activity_history, editable_attendance_ids=editable_attendance_ids,
     )
 
 
@@ -2828,14 +2839,16 @@ def novo_atendimento(pid):
 
 @app.route("/atendimento/<int:aid>/editar", methods=["GET", "POST"])
 def editar_atendimento(aid):
-    denial = admin_required()
-    if denial:
-        return denial
+    if not authenticated():
+        return redirect(url_for("login"))
     connection = db()
     attendance = connection.execute("SELECT * FROM atendimentos WHERE id = ?", (aid,)).fetchone()
     if not attendance:
         connection.close()
         return "Não encontrado", 404
+    if not can_edit_attendance(attendance):
+        connection.close()
+        return "Acesso não permitido para editar este atendimento.", 403
     if request.method == "POST":
         values = attendance_form_values(request.form)
         connection.execute(
