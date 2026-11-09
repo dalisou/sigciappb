@@ -1916,6 +1916,7 @@ def pessoas():
         return redirect(url_for("login"))
     query = request.args.get("q", "").strip()
     group = request.args.get("grupo", "")
+    measure = request.args.get("medida", "")
     sort_by = request.args.get("sort_by", "data_atendimento")
     if sort_by not in {"data_atendimento", "criado_em", "nome"}:
         sort_by = "data_atendimento"
@@ -1968,6 +1969,8 @@ def pessoas():
     people = [dict(person, grupo_responsabilizacao=normalize_group_responsibility(person["grupo_responsabilizacao"])) for person in people]
     if group:
         people = [person for person in people if group_responsibility_key(person["grupo_responsabilizacao"]) == group]
+    if measure:
+        people = [person for person in people if person["medida"] == measure]
     if sort_by == "nome":
         people.sort(
             key=lambda person: "".join(
@@ -1981,9 +1984,11 @@ def pessoas():
         people.sort(key=lambda person: not bool(person[sort_by]))
     group_names = sorted({person["grupo_responsabilizacao"] for person in people if person["grupo_responsabilizacao"]}, key=str.casefold)
     groups = [(group_responsibility_key(name), name) for name in group_names]
+    measures = SELECT_OPTIONS["medida"]
     connection.close()
     return render_template(
-        "pessoas.html", people=people, groups=groups, query=query, group=group,
+        "pessoas.html", people=people, groups=groups, measures=measures,
+        query=query, group=group, measure=measure,
         sort_by=sort_by, sort_order=sort_order,
     )
 
