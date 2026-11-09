@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
-{% macro report_table(title, code, mapping) %}
+{% macro report_table(title, code, mapping, metric=None) %}
 <section class="senappen-section">
   <h2><span>{{ code }}</span>{{ title }}</h2>
   <table class="senappen-table">
     <thead><tr><th>Categoria</th><th class="number">Quantidade</th></tr></thead>
-    <tbody>{% for label, total in mapping.items() %}<tr><td>{{ label }}</td><td class="number">{{ total }}</td></tr>{% endfor %}</tbody>
+    <tbody>{% for label, total in mapping.items() %}<tr><td>{% if metric %}<a class="senappen-drill" href="{{ url_for('senappen_detalhes', metrica=metric, modalidade=label, ano=year, semestre=semester, periodo=selection.period, mes=selection.month) }}">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td class="number">{% if metric %}<a class="senappen-drill" href="{{ url_for('senappen_detalhes', metrica=metric, modalidade=label, ano=year, semestre=semester, periodo=selection.period, mes=selection.month) }}">{{ total }}</a>{% else %}{{ total }}{% endif %}</td></tr>{% endfor %}</tbody>
   </table>
 </section>
 {% endmacro %}
@@ -22,6 +22,7 @@
 .senappen-section h2{font-size:15px;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid #075985;display:flex;gap:9px;align-items:baseline}
 .senappen-section h2 span{font-size:12px;color:#0e7490;white-space:nowrap}
 .senappen-table{font-size:12px}.senappen-table th,.senappen-table td{padding:6px 8px;border:1px solid #cbd5e1}.senappen-table th{background:#e8eef2;color:#243447}.senappen-table .number{text-align:right;width:105px;font-variant-numeric:tabular-nums}
+.senappen-drill{color:#075985;text-decoration:underline;text-decoration-color:#94a3b8;text-underline-offset:2px}.senappen-drill:hover{color:#0e7490;text-decoration-color:currentColor}
 .senappen-note{font-size:11px;color:#52606d;margin:12px 0}
 @media(max-width:700px){.senappen-title{align-items:flex-start;flex-direction:column}.senappen-filter{grid-template-columns:1fr}.senappen-sections{grid-template-columns:1fr}.senappen-months{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @page{size:A4 portrait;margin:14mm 13mm}
@@ -37,7 +38,7 @@
   .senappen-section h2{color:#111;font-size:11pt}
   .senappen-section h2 span{color:#333}
   .senappen-table{font-size:9pt}.senappen-table th{background:#eee!important;color:#111;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  .senappen-table th,.senappen-table td{padding:4px 6px;border-color:#777}
+  .senappen-table th,.senappen-table td{padding:4px 6px;border-color:#777}.senappen-drill{color:#111;text-decoration:none}
   .senappen-note{color:#333}
 }
 </style>
@@ -47,7 +48,7 @@
   <div>
     <p class="eyebrow">DADOS E ESTATÍSTICAS CIAP</p>
     <h1>Relatório Semestral SENAPPEN</h1>
-    <div class="senappen-period">{{ '1º' if semester == 1 else '2º' }} semestre de {{ year }} · Seção 4.7</div>
+    <div class="senappen-period">{{ selection.label }} · Seção 4.7</div>
   </div>
   <div class="actions senappen-actions">
     <button type="button" onclick="window.print()">Imprimir / Gerar Documento</button>
@@ -57,21 +58,23 @@
 <form class="senappen-filter" method="get">
   <label>Ano<input name="ano" type="number" min="1900" max="2100" value="{{ year }}" required></label>
   <label>Semestre<select name="semestre"><option value="1" {% if semester == 1 %}selected{% endif %}>1º semestre (janeiro a junho)</option><option value="2" {% if semester == 2 %}selected{% endif %}>2º semestre (julho a dezembro)</option></select></label>
+  <label>Período<select name="periodo"><option value="semestre" {% if selection.period == 'semestre' %}selected{% endif %}>Semestre</option><option value="mes" {% if selection.period == 'mes' %}selected{% endif %}>Mês</option><option value="geral" {% if selection.period == 'geral' %}selected{% endif %}>Total geral</option></select></label>
+  <label>Mês<select name="mes">{% for month in months %}<option value="{{ month.number }}" {% if selection.month == month.number %}selected{% endif %}>{{ month.label }}</option>{% endfor %}</select></label>
   <button type="submit">Atualizar relatório</button>
 </form>
 <div class="senappen-summary">
-  <span>Novas entradas: <strong>{{ total_entries }}</strong></span>
-  <span>Finalizações registradas: <strong>{{ total_finalizations }}</strong></span>
+  <span>Novas entradas: <strong><a class="senappen-drill" href="{{ url_for('senappen_detalhes', metrica='entrada', modalidade='todas', ano=year, semestre=semester, periodo=selection.period, mes=selection.month) }}">{{ total_entries }}</a></strong></span>
+  <span>Finalizações registradas: <strong><a class="senappen-drill" href="{{ url_for('senappen_detalhes', metrica='finalizacao', modalidade='todas', ano=year, semestre=semester, periodo=selection.period, mes=selection.month) }}">{{ total_finalizations }}</a></strong></span>
 </div>
 <section class="senappen-section">
   <h2><span>4.7.1 / 4.7.3</span>Entradas e finalizações mensais</h2>
   <div class="senappen-months">
-    {% for month in months %}<div class="senappen-month"><strong>{{ month.label }}</strong><span>Entradas: {{ month.total }} · Finalizações: {{ month.finalizations }}</span></div>{% endfor %}
+    {% for month in months %}<div class="senappen-month"><strong>{{ month.label }}</strong><span>Entradas: <a class="senappen-drill" href="{{ url_for('senappen_detalhes', metrica='entrada', modalidade='todas', ano=year, semestre=semester, periodo='mes', mes=month.number) }}">{{ month.total }}</a> · Finalizações: <a class="senappen-drill" href="{{ url_for('senappen_detalhes', metrica='finalizacao', modalidade='todas', ano=year, semestre=semester, periodo='mes', mes=month.number) }}">{{ month.finalizations }}</a></span></div>{% endfor %}
   </div>
 </section>
 <div class="senappen-sections">
-  {{ report_table('Entradas semestrais por modalidade / medida', '4.7.2', entries_by_modality) }}
-  {{ report_table('Finalizações semestrais por modalidade', '4.7.4', finalizations_by_modality) }}
+  {{ report_table('Entradas por modalidade / medida', '4.7.2', entries_by_modality, 'entrada') }}
+  {{ report_table('Finalizações por modalidade', '4.7.4', finalizations_by_modality, 'finalizacao') }}
   {{ report_table('Identidade de gênero', '4.7.5', gender) }}
   {{ report_table('Faixa etária', '4.7.6', ages) }}
   {{ report_table('Cor / raça', '4.7.7', race) }}

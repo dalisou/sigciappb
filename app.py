@@ -1485,11 +1485,33 @@ def relatorios():
     )
 
 
-@app.route("/relatorios/senappen")
-def relatorio_senappen():
-    if not authenticated():
-        return redirect(url_for("login"))
+SENAPPEN_MODALITIES = [
+    "Acordo de não persecução penal", "Conciliação", "Justiça restaurativa", "Mediação",
+    "Medida cautelar diversa da prisão", "Medidas protetivas de urgência", "Penas restritivas de direito",
+    "Suspensão condicional da pena", "Suspensão condicional do processo", "Transação penal", "Outras modalidades",
+]
 
+
+def senappen_key(value):
+    normalized = unicodedata.normalize("NFKD", str(value or "").strip().casefold())
+    return " ".join("".join(char for char in normalized if not unicodedata.combining(char)).split())
+
+
+def senappen_modality(value):
+    modality_aliases = {
+        "acordo de nao persecução penal": "Acordo de não persecução penal",
+        "acordo de nao persecucao penal": "Acordo de não persecução penal",
+        "sursis": "Suspensão condicional da pena",
+        "suspensao condicional da pena": "Suspensão condicional da pena",
+        "scp": "Suspensão condicional do processo",
+        "suspensao condicional do processo": "Suspensão condicional do processo",
+    }
+    normalized = {senappen_key(label): label for label in SENAPPEN_MODALITIES}
+    value_key = senappen_key(value)
+    return modality_aliases.get(value_key, normalized.get(value_key, "Outras modalidades"))
+
+
+def senappen_period():
     today = date.today()
     default_semester = 1 if today.month <= 6 else 2
     try:
@@ -1500,85 +1522,119 @@ def relatorio_senappen():
     if not 1900 <= year <= 2100 or semester not in (1, 2):
         year, semester = today.year, default_semester
 
+    period = request.args.get("periodo", "semestre")
+    if period not in {"semestre", "mes", "geral"}:
+        period = "semestre"
     first_month = 1 if semester == 1 else 7
-    start = date(year, first_month, 1)
-    month_count = 6
+    try:
+        month = int(request.args.get("mes", first_month))
+    except (TypeError, ValueError):
+        month = first_month
+    if month not in range(first_month, first_month + 6):
+        month = first_month
+
+    semester_start = date(year, first_month, 1)
+    semester_end = date(year + 1, 1, 1) if semester == 2 else date(year, 7, 1)
+    if period == "geral":
+        start, end = None, None
+        label = "Total geral"
+    elif period == "mes":
+        start = date(year, month, 1)
+        end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+        label = f"{start.strftime('%m/%Y')}"
+    else:
+        start, end = semester_start, semester_end
+        label = f"{'1º' if semester == 1 else '2º'} semestre de {year}"
+    return {
+        "year": year,
+        "semester": semester,
+        "period": period,
+        "month": month,
+        "start": start.isoformat() if start else None,
+        "end": end.isoformat() if end else None,
+        "label": label,
+    }
+
+
+@app.route("/relatorios/senappen")
+def relatorio_senappen():
+    if not authenticated():
+        return redirect(url_for("login"))
+
+    selection = senappen_period()
+    year, semester = selection["year"], selection["semester"]
+    first_month = 1 if semester == 1 else 7
     month_labels = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
                     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
     months = [
-        {"key": f"{year}-{month:02d}", "label": month_labels[month - 1], "total": 0}
-        for month in range(first_month, first_month + month_count)
+        {"key": f"{year}-{month:02d}", "number": month, "label": month_labels[month - 1], "total": 0}
+        for month in range(first_month, first_month + 6)
     ]
-    start_text = start.isoformat()
-    end_text = date(year, first_month + month_count, 1).isoformat() if first_month == 1 else date(year + 1, 1, 1).isoformat()
+    semester_start = date(year, first_month, 1).isoformat()
+    semester_end = (date(year + 1, 1, 1) if semester == 2 else date(year, 7, 1)).isoformat()
+    semester_reference = date(year, first_month, 1)
 
     connection = db()
+    date_filter = "data_atendimento IS NOT NULL AND data_atendimento <> ''"
+    entry_parameters = ()
+    final_parameters = ()
+    if selection["start"]:
+        date_filter = "data_atendimento >= ? AND data_atendimento < ?"
+        entry_parameters = (selection["start"], selection["end"])
+        final_filter = "termino_medida >= ? AND termino_medida < ?"
+        final_parameters = (selection["start"], selection["end"])
+    else:
+        final_filter = "termino_medida IS NOT NULL AND termino_medida <> ''"
     people = connection.execute(
-        "SELECT data_atendimento, data_nascimento, faixa_etaria, idade, medida, "
+        "SELECT id, nome, data_atendimento, data_nascimento, faixa_etaria, idade, medida, "
         "identidade_genero, raca, pcd, tipo_deficiencia, escolaridade, ocupacao, nacionalidade, pais "
-        "FROM pessoas WHERE data_atendimento >= ? AND data_atendimento < ?",
-        (start_text, end_text),
+        f"FROM pessoas WHERE {date_filter}",
+        entry_parameters,
     ).fetchall()
     finalized = connection.execute(
-        "SELECT medida, termino_medida FROM pessoas "
-        "WHERE termino_medida >= ? AND termino_medida < ?",
-        (start_text, end_text),
+        "SELECT id, nome, medida, data_atendimento, termino_medida FROM pessoas "
+        f"WHERE {final_filter}",
+        final_parameters,
+    ).fetchall()
+    semester_people = connection.execute(
+        "SELECT data_atendimento FROM pessoas WHERE data_atendimento >= ? AND data_atendimento < ?",
+        (semester_start, semester_end),
+    ).fetchall()
+    semester_finalized = connection.execute(
+        "SELECT termino_medida FROM pessoas WHERE termino_medida >= ? AND termino_medida < ?",
+        (semester_start, semester_end),
     ).fetchall()
     connection.close()
-
-    def key(value):
-        normalized = unicodedata.normalize("NFKD", str(value or "").strip().casefold())
-        return " ".join("".join(char for char in normalized if not unicodedata.combining(char)).split())
 
     def categories(labels):
         return {label: 0 for label in labels}
 
-    for person in people:
-        entry_date = (person["data_atendimento"] or "")[:10]
-        month_key = entry_date[:7]
+    for person in semester_people:
+        month_key = (person["data_atendimento"] or "")[:7]
         for item in months:
             if item["key"] == month_key:
                 item["total"] += 1
 
-    modality_labels = [
-        "Acordo de não persecução penal", "Conciliação", "Justiça restaurativa", "Mediação",
-        "Medida cautelar diversa da prisão", "Medidas protetivas de urgência", "Penas restritivas de direito",
-        "Suspensão condicional da pena", "Suspensão condicional do processo", "Transação penal", "Outras modalidades",
-    ]
-    modality_aliases = {
-        "acordo de nao persecução penal": "Acordo de não persecução penal",
-        "acordo de nao persecucao penal": "Acordo de não persecução penal",
-        "sursis": "Suspensão condicional da pena",
-        "suspensao condicional da pena": "Suspensão condicional da pena",
-        "scp": "Suspensão condicional do processo",
-        "suspensao condicional do processo": "Suspensão condicional do processo",
-    }
-    normalized_modalities = {key(label): label for label in modality_labels}
-
-    def modality(value):
-        value_key = key(value)
-        return modality_aliases.get(value_key, normalized_modalities.get(value_key, "Outras modalidades"))
-
-    entries_by_modality = categories(modality_labels)
+    entries_by_modality = categories(SENAPPEN_MODALITIES)
     finalizations_by_month = {item["key"]: 0 for item in months}
-    finalizations_by_modality = categories(modality_labels)
+    finalizations_by_modality = categories(SENAPPEN_MODALITIES)
     for person in people:
-        entries_by_modality[modality(person["medida"])] += 1
+        entries_by_modality[senappen_modality(person["medida"])] += 1
     for person in finalized:
-        completion_date = (person["termino_medida"] or "")[:10]
-        month_key = completion_date[:7]
+        finalizations_by_modality[senappen_modality(person["medida"])] += 1
+    for person in semester_finalized:
+        month_key = (person["termino_medida"] or "")[:7]
         if month_key in finalizations_by_month:
             finalizations_by_month[month_key] += 1
-        finalizations_by_modality[modality(person["medida"])] += 1
     for item in months:
         item["finalizations"] = finalizations_by_month[item["key"]]
 
     def count_field(field, labels, aliases=None, fallback=None):
         counts = categories(labels)
-        normalized = {key(label): label for label in labels}
+        normalized = {senappen_key(label): label for label in labels}
         normalized.update(aliases or {})
         for person in people:
-            value_key = key(person[field])
+            value_key = senappen_key(person[field])
             label = normalized.get(value_key, fallback if value_key else labels[-1])
             counts[label] += 1
         return counts
@@ -1595,13 +1651,13 @@ def relatorio_senappen():
     age_labels = ["18 a 24 anos", "25 a 29 anos", "30 a 34 anos", "35 a 59 anos", "60 a 74 anos", "75 anos ou mais", "Não informou"]
     ages = categories(age_labels)
     for person in people:
-        age_value = key(person["faixa_etaria"])
+        age_value = senappen_key(person["faixa_etaria"])
         age = None
         if not age_value:
             try:
                 birth = date.fromisoformat((person["data_nascimento"] or "")[:10])
                 entry_date = (person["data_atendimento"] or "")[:10]
-                reference_date = date.fromisoformat(entry_date) if entry_date else start
+                reference_date = date.fromisoformat(entry_date) if entry_date else semester_reference
                 age = reference_date.year - birth.year - ((reference_date.month, reference_date.day) < (birth.month, birth.day))
             except ValueError:
                 try:
@@ -1611,7 +1667,7 @@ def relatorio_senappen():
         if age is not None:
             age_value = "18 a 24 anos" if 18 <= age <= 24 else "25 a 29 anos" if 25 <= age <= 29 else "30 a 34 anos" if 30 <= age <= 34 else "35 a 59 anos" if 35 <= age <= 59 else "60 a 74 anos" if 60 <= age <= 74 else "75 anos ou mais" if age >= 75 else "Não informou"
         age_aliases = {"18 a 24": "18 a 24 anos", "25 a 29": "25 a 29 anos", "30 a 34": "30 a 34 anos", "35 a 59": "35 a 59 anos", "60 a 74": "60 a 74 anos", "75 ou mais": "75 anos ou mais", "nao informado": "Não informou"}
-        normalized_ages = {key(label): label for label in age_labels}
+        normalized_ages = {senappen_key(label): label for label in age_labels}
         normalized_ages.update(age_aliases)
         ages[normalized_ages.get(age_value, "Não informou")] += 1
 
@@ -1626,13 +1682,13 @@ def relatorio_senappen():
     }
     disability = categories(disability_labels)
     for person in people:
-        if key(person["pcd"]) in {"nao", "nao possui"}:
+        if senappen_key(person["pcd"]) in {"nao", "nao possui"}:
             continue
-        value_key = key(person["tipo_deficiencia"])
-        if key(person["pcd"]) not in {"sim", "yes"}:
+        value_key = senappen_key(person["tipo_deficiencia"])
+        if senappen_key(person["pcd"]) not in {"sim", "yes"}:
             disability["Não informou"] += 1
         else:
-            normalized_disability = {key(label): label for label in disability_labels}
+            normalized_disability = {senappen_key(label): label for label in disability_labels}
             normalized_disability.update(disability_aliases)
             disability[normalized_disability.get(value_key, "Não informou")] += 1
 
@@ -1654,8 +1710,8 @@ def relatorio_senappen():
     countries = {}
     for person in people:
         country = (person["pais"] or "").strip()
-        nationality_key = key(person["nacionalidade"])
-        country_key = key(country)
+        nationality_key = senappen_key(person["nacionalidade"])
+        country_key = senappen_key(country)
         if nationality_key in {"brasileira", "brasileiro", "brasileira nata", "brasileiro nato"} or country_key in {"brasil", "brasileira", "brasileiro"}:
             nationality["Brasileiros"] += 1
         elif nationality_key in {"estrangeira", "estrangeiro"} or country:
@@ -1667,12 +1723,49 @@ def relatorio_senappen():
 
     return render_template(
         "relatorios/senappen.html", title="Relatório Semestral SENAPPEN",
-        year=year, semester=semester, months=months,
+        year=year, semester=semester, months=months, selection=selection,
         entries_by_modality=entries_by_modality, finalizations_by_modality=finalizations_by_modality,
         gender=gender, ages=ages, race=race, disability=disability,
         education=education, occupation=occupation, nationality=nationality,
         countries=sorted(countries.items(), key=lambda item: (-item[1], item[0].casefold())),
         total_entries=len(people), total_finalizations=len(finalized),
+    )
+
+
+@app.route("/relatorios/senappen/detalhes")
+def senappen_detalhes():
+    if not authenticated():
+        return redirect(url_for("login"))
+    selection = senappen_period()
+    metric = request.args.get("metrica", "entrada")
+    if metric not in {"entrada", "finalizacao"}:
+        return "Métrica inválida", 400
+    modality = request.args.get("modalidade", "todas")
+    if modality != "todas" and modality not in SENAPPEN_MODALITIES:
+        return "Modalidade inválida", 400
+
+    date_field = "data_atendimento" if metric == "entrada" else "termino_medida"
+    conditions = [f"{date_field} IS NOT NULL", f"{date_field} <> ''"]
+    parameters = []
+    if selection["start"]:
+        conditions = [f"{date_field} >= ?", f"{date_field} < ?"]
+        parameters = [selection["start"], selection["end"]]
+    connection = db()
+    people = connection.execute(
+        "SELECT id, nome, medida, data_atendimento, termino_medida FROM pessoas WHERE "
+        + " AND ".join(conditions)
+        + f" ORDER BY {date_field} DESC, nome",
+        parameters,
+    ).fetchall()
+    connection.close()
+    people = [
+        dict(person, modalidade=senappen_modality(person["medida"]))
+        for person in people
+        if modality == "todas" or senappen_modality(person["medida"]) == modality
+    ]
+    return render_template(
+        "relatorios/senappen_detalhes.html", title="Detalhamento SENAPPEN",
+        people=people, metric=metric, modality=modality, selection=selection,
     )
 
 
@@ -2304,6 +2397,7 @@ def editar_frequencia(pid):
     return render_template("frequencia_form.html", person=person, frequencies=frequencies)
 
 
+@app.route("/pessoas/<int:pid>", endpoint="pessoa_plural")
 @app.route("/pessoa/<int:pid>")
 def pessoa(pid):
     if not authenticated():

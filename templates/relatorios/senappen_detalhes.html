@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="senappen-detail-title">
+  <div>
+    <p class="eyebrow">DADOS E ESTATÍSTICAS CIAP</p>
+    <h1>Assistidos do relatório SENAPPEN</h1>
+    <p>{{ 'Entradas' if metric == 'entrada' else 'Finalizações' }} · {{ modality if modality != 'todas' else 'Todas as modalidades' }} · {{ selection.label }}</p>
+  </div>
+  <a class="btn alt" href="{{ url_for('relatorio_senappen', ano=selection.year, semestre=selection.semester, periodo=selection.period, mes=selection.month) }}">Voltar ao relatório</a>
+</div>
+<div class="card senappen-detail-list">
+  <table>
+    <thead><tr><th>Assistido</th><th>Modalidade</th><th>Data de entrada</th><th>Data de finalização</th></tr></thead>
+    <tbody>
+      {% for person in people %}
+      <tr>
+        <td><a href="{{ url_for('pessoa_plural', pid=person.id) }}">{{ person.nome or 'Sem nome informado' }}</a></td>
+        <td>{{ person.modalidade }}</td>
+        <td>{{ person.data_atendimento or '—' }}</td>
+        <td>{{ person.termino_medida or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">Nenhum assistido encontrado para este filtro.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<style>
+.senappen-detail-title{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:18px}.senappen-detail-title h1{margin:0 0 6px}.senappen-detail-title p:last-child{color:#46525e;margin:0}.senappen-detail-list{overflow-x:auto}.senappen-detail-list table{min-width:640px;width:100%}
+@media(max-width:700px){.senappen-detail-title{align-items:flex-start;flex-direction:column}}
+</style>
+{% endblock %}
