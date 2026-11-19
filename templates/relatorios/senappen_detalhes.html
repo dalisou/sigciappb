@@ -4,18 +4,18 @@
   <div>
     <p class="eyebrow">DADOS E ESTATÍSTICAS CIAP</p>
     <h1>Assistidos do relatório SENAPPEN</h1>
-    <p>{{ 'Entradas' if metric == 'entrada' else 'Finalizações' }} · {{ modality if modality != 'todas' else 'Todas as modalidades' }} · {{ selection.label }}</p>
+    <p>{% if section %}{{ section }} · {{ section_title }} · {{ category }}{% else %}{{ 'Entradas' if metric == 'entrada' else 'Finalizações' }} · {{ modality if modality != 'todas' else 'Todas as modalidades' }}{% endif %} · {{ selection.label }}</p>
   </div>
   <a class="btn alt" href="{{ url_for('relatorio_senappen', ano=selection.year, semestre=selection.semester, periodo=selection.period, mes=selection.month) }}">Voltar ao relatório</a>
 </div>
 <div class="card senappen-detail-list">
   <table>
-    <thead><tr><th>Assistido</th><th>Modalidade</th><th>Data de entrada</th><th>Data de finalização</th></tr></thead>
+    <thead><tr><th>Assistido</th><th>{{ section_title if section else 'Modalidade' }}</th><th>Data de entrada</th><th>Data de finalização</th></tr></thead>
     <tbody>
       {% for person in people %}
       <tr>
         <td><a href="{{ url_for('pessoa_plural', pid=person.id) }}">{{ person.nome or 'Sem nome informado' }}</a></td>
-        <td>{{ person.modalidade }}</td>
+        <td>{{ person.detail_value if section else person.modalidade }}</td>
         <td>{{ person.data_atendimento or '—' }}</td>
         <td>{{ person.termino_medida or '—' }}</td>
       </tr>

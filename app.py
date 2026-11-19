@@ -1511,6 +1511,107 @@ def senappen_modality(value):
     return modality_aliases.get(value_key, normalized.get(value_key, "Outras modalidades"))
 
 
+def senappen_age_category(person, reference_date):
+    age_value = senappen_key(person["faixa_etaria"])
+    age = None
+    if not age_value:
+        try:
+            birth = date.fromisoformat((person["data_nascimento"] or "")[:10])
+            entry_date = (person["data_atendimento"] or "")[:10]
+            age_reference = date.fromisoformat(entry_date) if entry_date else reference_date
+            age = age_reference.year - birth.year - ((age_reference.month, age_reference.day) < (birth.month, birth.day))
+        except ValueError:
+            try:
+                age = int(person["idade"])
+            except (TypeError, ValueError):
+                pass
+    if age is not None:
+        age_value = (
+            "18 a 24 anos" if 18 <= age <= 24 else
+            "25 a 29 anos" if 25 <= age <= 29 else
+            "30 a 34 anos" if 30 <= age <= 34 else
+            "35 a 59 anos" if 35 <= age <= 59 else
+            "60 a 74 anos" if 60 <= age <= 74 else
+            "75 anos ou mais" if age >= 75 else "Não informou"
+        )
+    age_aliases = {
+        "18 a 24": "18 a 24 anos", "25 a 29": "25 a 29 anos", "30 a 34": "30 a 34 anos",
+        "35 a 59": "35 a 59 anos", "60 a 74": "60 a 74 anos", "75 ou mais": "75 anos ou mais",
+        "nao informado": "Não informou",
+    }
+    age_labels = ["18 a 24 anos", "25 a 29 anos", "30 a 34 anos", "35 a 59 anos", "60 a 74 anos", "75 anos ou mais", "Não informou"]
+    normalized = {senappen_key(label): label for label in age_labels}
+    normalized.update(age_aliases)
+    return normalized.get(age_value, "Não informou")
+
+
+def senappen_demographic_category(person, section, reference_date):
+    value_fields = {
+        "4.7.5": "identidade_genero",
+        "4.7.7": "raca",
+        "4.7.8": "tipo_deficiencia",
+        "4.7.9": "escolaridade",
+        "4.7.10": "ocupacao",
+    }
+    labels = {
+        "4.7.5": ["Mulher Cisgênero", "Homem Cisgênero", "Mulher Trans/Travesti", "Homem Trans", "Pessoa não binária", "Outro", "Não informou"],
+        "4.7.7": ["Preta", "Branca", "Parda", "Indígena", "Amarela", "Outro", "Não informou"],
+        "4.7.8": ["Deficiência Motora", "Deficiência Visual", "Deficiência Mental/Intelectual", "Deficiência Auditiva", "Outra", "Não informou"],
+        "4.7.9": ["Não Alfabetizado", "Ensino Fundamental Incompleto", "Ensino Fundamental", "Ensino Médio Incompleto", "Ensino Médio", "Ensino Superior", "Pós-Graduado", "Não informou"],
+        "4.7.10": ["Ocupação Formal", "Ocupação Informal", "Sem Ocupação", "Não informou"],
+    }
+    aliases = {
+        "4.7.5": {
+            "mulher cis": "Mulher Cisgênero", "mulher cisgenero": "Mulher Cisgênero",
+            "homem cis": "Homem Cisgênero", "homem cisgenero": "Homem Cisgênero",
+            "pessoa nao binaria": "Pessoa não binária", "nao informou": "Não informou",
+            "nao informado": "Não informou", "transgenero": "Outro",
+        },
+        "4.7.7": {"nao declarada": "Não informou", "nao informado": "Não informou"},
+        "4.7.8": {
+            "motora": "Deficiência Motora", "visual": "Deficiência Visual",
+            "mental/intelectual": "Deficiência Mental/Intelectual", "auditiva": "Deficiência Auditiva",
+            "outra(s) deficiencia(s)": "Outra", "outra deficiencia": "Outra",
+            "nao declarado": "Não informou", "nao declarada": "Não informou",
+        },
+        "4.7.9": {
+            "nao informado": "Não informou", "nao alfabetizada": "Não Alfabetizado",
+            "ensino superior incompleto": "Ensino Superior", "pos graduado": "Pós-Graduado",
+            "mba": "Pós-Graduado", "mestrado": "Pós-Graduado", "doutorado": "Pós-Graduado",
+            "pos doutorado": "Pós-Graduado",
+        },
+        "4.7.10": {
+            "formal": "Ocupação Formal", "informal": "Ocupação Informal",
+            "sem ocupacao": "Sem Ocupação", "nao informou": "Não informou", "nao informado": "Não informou",
+        },
+    }
+    if section == "4.7.6":
+        return senappen_age_category(person, reference_date)
+    if section == "4.7.11":
+        nationality = senappen_key(person["nacionalidade"])
+        country = senappen_key(person["pais"])
+        if nationality in {"brasileira", "brasileiro", "brasileira nata", "brasileiro nato"} or country in {"brasil", "brasileira", "brasileiro"}:
+            return "Brasileiros"
+        if nationality in {"estrangeira", "estrangeiro"} or (person["pais"] or "").strip():
+            return "Estrangeiros"
+        return "Não informado"
+    if section == "4.7.11.1":
+        if senappen_demographic_category(person, "4.7.11", reference_date) != "Estrangeiros":
+            return None
+        return (person["pais"] or "").strip() or "Não informado"
+    if section == "4.7.8":
+        if senappen_key(person["pcd"]) in {"nao", "nao possui"}:
+            return None
+        if senappen_key(person["pcd"]) not in {"sim", "yes"}:
+            return "Não informou"
+    field = value_fields[section]
+    normalized = {senappen_key(label): label for label in labels[section]}
+    normalized.update(aliases[section])
+    value_key = senappen_key(person[field])
+    fallback = "Outro" if section in {"4.7.5", "4.7.7"} else "Não informou"
+    return normalized.get(value_key, fallback if value_key else labels[section][-1])
+
+
 def senappen_period():
     today = date.today()
     default_semester = 1 if today.month <= 6 else 2
@@ -1629,97 +1730,31 @@ def relatorio_senappen():
     for item in months:
         item["finalizations"] = finalizations_by_month[item["key"]]
 
-    def count_field(field, labels, aliases=None, fallback=None):
-        counts = categories(labels)
-        normalized = {senappen_key(label): label for label in labels}
-        normalized.update(aliases or {})
-        for person in people:
-            value_key = senappen_key(person[field])
-            label = normalized.get(value_key, fallback if value_key else labels[-1])
-            counts[label] += 1
-        return counts
-
     gender_labels = ["Mulher Cisgênero", "Homem Cisgênero", "Mulher Trans/Travesti", "Homem Trans", "Pessoa não binária", "Outro", "Não informou"]
-    gender_aliases = {
-        "mulher cis": "Mulher Cisgênero", "mulher cisgenero": "Mulher Cisgênero",
-        "homem cis": "Homem Cisgênero", "homem cisgenero": "Homem Cisgênero",
-        "pessoa nao binaria": "Pessoa não binária", "nao informou": "Não informou",
-        "nao informado": "Não informou", "transgenero": "Outro",
-    }
-    gender = count_field("identidade_genero", gender_labels, gender_aliases, "Outro")
-
     age_labels = ["18 a 24 anos", "25 a 29 anos", "30 a 34 anos", "35 a 59 anos", "60 a 74 anos", "75 anos ou mais", "Não informou"]
-    ages = categories(age_labels)
-    for person in people:
-        age_value = senappen_key(person["faixa_etaria"])
-        age = None
-        if not age_value:
-            try:
-                birth = date.fromisoformat((person["data_nascimento"] or "")[:10])
-                entry_date = (person["data_atendimento"] or "")[:10]
-                reference_date = date.fromisoformat(entry_date) if entry_date else semester_reference
-                age = reference_date.year - birth.year - ((reference_date.month, reference_date.day) < (birth.month, birth.day))
-            except ValueError:
-                try:
-                    age = int(person["idade"])
-                except (TypeError, ValueError):
-                    pass
-        if age is not None:
-            age_value = "18 a 24 anos" if 18 <= age <= 24 else "25 a 29 anos" if 25 <= age <= 29 else "30 a 34 anos" if 30 <= age <= 34 else "35 a 59 anos" if 35 <= age <= 59 else "60 a 74 anos" if 60 <= age <= 74 else "75 anos ou mais" if age >= 75 else "Não informou"
-        age_aliases = {"18 a 24": "18 a 24 anos", "25 a 29": "25 a 29 anos", "30 a 34": "30 a 34 anos", "35 a 59": "35 a 59 anos", "60 a 74": "60 a 74 anos", "75 ou mais": "75 anos ou mais", "nao informado": "Não informou"}
-        normalized_ages = {senappen_key(label): label for label in age_labels}
-        normalized_ages.update(age_aliases)
-        ages[normalized_ages.get(age_value, "Não informou")] += 1
-
     race_labels = ["Preta", "Branca", "Parda", "Indígena", "Amarela", "Outro", "Não informou"]
-    race = count_field("raca", race_labels, {"nao declarada": "Não informou", "nao informado": "Não informou"}, "Outro")
     disability_labels = ["Deficiência Motora", "Deficiência Visual", "Deficiência Mental/Intelectual", "Deficiência Auditiva", "Outra", "Não informou"]
-    disability_aliases = {
-        "motora": "Deficiência Motora", "visual": "Deficiência Visual",
-        "mental/intelectual": "Deficiência Mental/Intelectual", "auditiva": "Deficiência Auditiva",
-        "outra(s) deficiencia(s)": "Outra", "outra deficiencia": "Outra",
-        "nao declarado": "Não informou", "nao declarada": "Não informou",
-    }
-    disability = categories(disability_labels)
-    for person in people:
-        if senappen_key(person["pcd"]) in {"nao", "nao possui"}:
-            continue
-        value_key = senappen_key(person["tipo_deficiencia"])
-        if senappen_key(person["pcd"]) not in {"sim", "yes"}:
-            disability["Não informou"] += 1
-        else:
-            normalized_disability = {senappen_key(label): label for label in disability_labels}
-            normalized_disability.update(disability_aliases)
-            disability[normalized_disability.get(value_key, "Não informou")] += 1
-
     education_labels = ["Não Alfabetizado", "Ensino Fundamental Incompleto", "Ensino Fundamental", "Ensino Médio Incompleto", "Ensino Médio", "Ensino Superior", "Pós-Graduado", "Não informou"]
-    education_aliases = {
-        "nao informado": "Não informou", "nao alfabetizada": "Não Alfabetizado",
-        "ensino superior incompleto": "Ensino Superior", "pos graduado": "Pós-Graduado",
-        "mba": "Pós-Graduado", "mestrado": "Pós-Graduado", "doutorado": "Pós-Graduado",
-        "pos doutorado": "Pós-Graduado",
-    }
-    education = count_field("escolaridade", education_labels, education_aliases, "Não informou")
     occupation_labels = ["Ocupação Formal", "Ocupação Informal", "Sem Ocupação", "Não informou"]
-    occupation = count_field("ocupacao", occupation_labels, {
-        "formal": "Ocupação Formal", "informal": "Ocupação Informal",
-        "sem ocupacao": "Sem Ocupação", "nao informou": "Não informou", "nao informado": "Não informou",
-    }, "Não informou")
-
     nationality = {"Brasileiros": 0, "Estrangeiros": 0, "Não informado": 0}
     countries = {}
+    gender = categories(gender_labels)
+    ages = categories(age_labels)
+    race = categories(race_labels)
+    disability = categories(disability_labels)
+    education = categories(education_labels)
+    occupation = categories(occupation_labels)
     for person in people:
-        country = (person["pais"] or "").strip()
-        nationality_key = senappen_key(person["nacionalidade"])
-        country_key = senappen_key(country)
-        if nationality_key in {"brasileira", "brasileiro", "brasileira nata", "brasileiro nato"} or country_key in {"brasil", "brasileira", "brasileiro"}:
-            nationality["Brasileiros"] += 1
-        elif nationality_key in {"estrangeira", "estrangeiro"} or country:
-            nationality["Estrangeiros"] += 1
-            country_name = country or "Não informado"
+        for section, counts in (
+            ("4.7.5", gender), ("4.7.6", ages), ("4.7.7", race), ("4.7.8", disability),
+            ("4.7.9", education), ("4.7.10", occupation), ("4.7.11", nationality),
+        ):
+            category = senappen_demographic_category(person, section, semester_reference)
+            if category in counts:
+                counts[category] += 1
+        country_name = senappen_demographic_category(person, "4.7.11.1", semester_reference)
+        if country_name:
             countries[country_name] = countries.get(country_name, 0) + 1
-        else:
-            nationality["Não informado"] += 1
 
     return render_template(
         "relatorios/senappen.html", title="Relatório Semestral SENAPPEN",
@@ -1737,6 +1772,46 @@ def senappen_detalhes():
     if not authenticated():
         return redirect(url_for("login"))
     selection = senappen_period()
+    section = request.args.get("secao", "").strip()
+    category = request.args.get("categoria", "")
+    demographic_sections = {"4.7.5", "4.7.6", "4.7.7", "4.7.8", "4.7.9", "4.7.10", "4.7.11", "4.7.11.1"}
+    if section:
+        if section not in demographic_sections or not category:
+            return "Seção ou categoria inválida", 400
+        conditions = ["data_atendimento IS NOT NULL", "data_atendimento <> ''"]
+        parameters = []
+        if selection["start"]:
+            conditions = ["data_atendimento >= ?", "data_atendimento < ?"]
+            parameters = [selection["start"], selection["end"]]
+        connection = db()
+        rows = connection.execute(
+            "SELECT id, nome, medida, data_atendimento, termino_medida, data_nascimento, faixa_etaria, idade, "
+            "identidade_genero, raca, pcd, tipo_deficiencia, escolaridade, ocupacao, nacionalidade, pais "
+            "FROM pessoas WHERE " + " AND ".join(conditions) + " ORDER BY data_atendimento DESC, nome",
+            parameters,
+        ).fetchall()
+        connection.close()
+        first_month = 1 if selection["semester"] == 1 else 7
+        reference_date = date(selection["year"], first_month, 1)
+        section_titles = {
+            "4.7.5": "Identidade de gênero", "4.7.6": "Faixa etária", "4.7.7": "Cor / raça",
+            "4.7.8": "Pessoas com deficiência por tipo", "4.7.9": "Escolaridade",
+            "4.7.10": "Tipo de ocupação", "4.7.11": "Nacionalidade",
+            "4.7.11.1": "País de origem",
+        }
+        people = []
+        for row in rows:
+            detail_value = senappen_demographic_category(row, section, reference_date)
+            if detail_value == category:
+                people.append(dict(
+                    row, modalidade=senappen_modality(row["medida"]), detail_value=detail_value,
+                ))
+        return render_template(
+            "relatorios/senappen_detalhes.html", title="Detalhamento SENAPPEN",
+            people=people, metric="demografico", modality=category, selection=selection,
+            section=section, section_title=section_titles[section], category=category,
+        )
+
     metric = request.args.get("metrica", "entrada")
     if metric not in {"entrada", "finalizacao"}:
         return "Métrica inválida", 400

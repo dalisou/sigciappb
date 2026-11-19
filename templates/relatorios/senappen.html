@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
-{% macro report_table(title, code, mapping, metric=None) %}
+{% macro report_table(title, code, mapping, metric=None, section=None) %}
 <section class="senappen-section">
   <h2><span>{{ code }}</span>{{ title }}</h2>
   <table class="senappen-table">
     <thead><tr><th>Categoria</th><th class="number">Quantidade</th></tr></thead>
-    <tbody>{% for label, total in mapping.items() %}<tr><td>{% if metric %}<a class="senappen-drill" href="{{ url_for('senappen_detalhes', metrica=metric, modalidade=label, ano=year, semestre=semester, periodo=selection.period, mes=selection.month) }}">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td class="number">{% if metric %}<a class="senappen-drill" href="{{ url_for('senappen_detalhes', metrica=metric, modalidade=label, ano=year, semestre=semester, periodo=selection.period, mes=selection.month) }}">{{ total }}</a>{% else %}{{ total }}{% endif %}</td></tr>{% endfor %}</tbody>
+    <tbody>{% for label, total in mapping.items() %}<tr><td>{% if metric %}<a class="senappen-drill" href="{{ url_for('senappen_detalhes', metrica=metric, modalidade=label, ano=year, semestre=semester, periodo=selection.period, mes=selection.month) }}">{{ label }}</a>{% elif section %}<a class="senappen-drill" href="{{ url_for('senappen_detalhes', secao=section, categoria=label, ano=year, semestre=semester, periodo=selection.period, mes=selection.month) }}">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td class="number">{% if metric %}<a class="senappen-drill" href="{{ url_for('senappen_detalhes', metrica=metric, modalidade=label, ano=year, semestre=semester, periodo=selection.period, mes=selection.month) }}">{{ total }}</a>{% elif section %}<a class="senappen-drill" href="{{ url_for('senappen_detalhes', secao=section, categoria=label, ano=year, semestre=semester, periodo=selection.period, mes=selection.month) }}">{{ total }}</a>{% else %}{{ total }}{% endif %}</td></tr>{% endfor %}</tbody>
   </table>
 </section>
 {% endmacro %}
@@ -75,16 +75,16 @@
 <div class="senappen-sections">
   {{ report_table('Entradas por modalidade / medida', '4.7.2', entries_by_modality, 'entrada') }}
   {{ report_table('Finalizações por modalidade', '4.7.4', finalizations_by_modality, 'finalizacao') }}
-  {{ report_table('Identidade de gênero', '4.7.5', gender) }}
-  {{ report_table('Faixa etária', '4.7.6', ages) }}
-  {{ report_table('Cor / raça', '4.7.7', race) }}
-  {{ report_table('Pessoas com deficiência por tipo', '4.7.8', disability) }}
-  {{ report_table('Escolaridade', '4.7.9', education) }}
-  {{ report_table('Tipo de ocupação', '4.7.10', occupation) }}
-  {{ report_table('Nacionalidade', '4.7.11', nationality) }}
+  {{ report_table('Identidade de gênero', '4.7.5', gender, section='4.7.5') }}
+  {{ report_table('Faixa etária', '4.7.6', ages, section='4.7.6') }}
+  {{ report_table('Cor / raça', '4.7.7', race, section='4.7.7') }}
+  {{ report_table('Pessoas com deficiência por tipo', '4.7.8', disability, section='4.7.8') }}
+  {{ report_table('Escolaridade', '4.7.9', education, section='4.7.9') }}
+  {{ report_table('Tipo de ocupação', '4.7.10', occupation, section='4.7.10') }}
+  {{ report_table('Nacionalidade', '4.7.11', nationality, section='4.7.11') }}
   <section class="senappen-section">
     <h2><span>4.7.11.1</span>Detalhamento de pessoas estrangeiras por país</h2>
-    {% if countries %}<table class="senappen-table"><thead><tr><th>País</th><th class="number">Quantidade</th></tr></thead><tbody>{% for country, total in countries %}<tr><td>{{ country }}</td><td class="number">{{ total }}</td></tr>{% endfor %}</tbody></table>{% else %}<p class="senappen-note">Nenhuma pessoa estrangeira registrada no semestre.</p>{% endif %}
+    {% if countries %}<table class="senappen-table"><thead><tr><th>País</th><th class="number">Quantidade</th></tr></thead><tbody>{% for country, total in countries %}<tr><td><a class="senappen-drill" href="{{ url_for('senappen_detalhes', secao='4.7.11.1', categoria=country, ano=year, semestre=semester, periodo=selection.period, mes=selection.month) }}">{{ country }}</a></td><td class="number"><a class="senappen-drill" href="{{ url_for('senappen_detalhes', secao='4.7.11.1', categoria=country, ano=year, semestre=semester, periodo=selection.period, mes=selection.month) }}">{{ total }}</a></td></tr>{% endfor %}</tbody></table>{% else %}<p class="senappen-note">Nenhuma pessoa estrangeira registrada no semestre.</p>{% endif %}
   </section>
 </div>
 <p class="senappen-note">Entradas consideram a data do primeiro atendimento. Finalizações consideram a data de término da medida cadastrada.</p>
