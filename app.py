@@ -2085,6 +2085,10 @@ def pessoas():
     query = request.args.get("q", "").strip()
     group = request.args.get("grupo", "")
     measure = request.args.get("medida", "")
+    service_status = request.args.get("prestacao_servico_comunitario", "")
+    if service_status not in {"", "Sim", "Não"}:
+        service_status = ""
+    service_location = request.args.get("local_prestacao_servico", "").strip()
     sort_by = request.args.get("sort_by", "data_atendimento")
     if sort_by not in {"data_atendimento", "criado_em", "nome"}:
         sort_by = "data_atendimento"
@@ -2097,6 +2101,11 @@ def pessoas():
         sort_order = "desc"
     connection = db()
     tokens = query.split()
+
+    def search_key(value):
+        normalized = unicodedata.normalize("NFKD", (value or "").casefold())
+        return "".join(character for character in normalized if not unicodedata.combining(character))
+
     if using_postgres() and tokens:
         # O nome usa unaccent tokenizado; CPF/processo são comparados sem máscara.
         conditions = []
@@ -2122,10 +2131,6 @@ def pessoas():
         people = connection.execute("SELECT * FROM pessoas ORDER BY nome").fetchall()
         if tokens:
             # O SQLite não possui unaccent nativo; NFKD remove acentos para a busca local.
-            def search_key(value):
-                normalized = unicodedata.normalize("NFKD", (value or "").casefold())
-                return "".join(character for character in normalized if not unicodedata.combining(character))
-
             normalized_tokens = [search_key(token) for token in tokens]
             clean_query = re.sub(r"[./-]", "", search_key(query))
             people = [
@@ -2139,6 +2144,17 @@ def pessoas():
         people = [person for person in people if group_responsibility_key(person["grupo_responsabilizacao"]) == group]
     if measure:
         people = [person for person in people if person["medida"] == measure]
+    if service_status:
+        people = [
+            person for person in people
+            if person["prestacao_servico_comunitario"] == service_status
+        ]
+    if service_location:
+        normalized_location = search_key(service_location)
+        people = [
+            person for person in people
+            if normalized_location in search_key(person["local_prestacao_servico"])
+        ]
     if sort_by == "nome":
         people.sort(
             key=lambda person: "".join(
@@ -2157,6 +2173,7 @@ def pessoas():
     return render_template(
         "pessoas.html", people=people, groups=groups, measures=measures,
         query=query, group=group, measure=measure,
+        service_status=service_status, service_location=service_location,
         sort_by=sort_by, sort_order=sort_order,
     )
 
