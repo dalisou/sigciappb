@@ -1,0 +1,47 @@
+<section class="people-search-report">
+  <h1>Assistidos em Acompanhamento</h1>
+  <p class="report-count">{{ result_count }} assistido(s) encontrado(s)</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>CPF</th>
+        <th>Processo</th>
+        <th>Medida</th>
+        <th>Grupo</th>
+        {% if include_service_columns %}
+        <th>Local de Prestação de Serviço</th>
+        <th>Total de Horas da Prestação</th>
+        <th>Horas Semanais</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for person in people %}
+      <tr>
+        <td>{{ person.nome or '—' }}</td>
+        <td>{{ person.cpf or '—' }}</td>
+        <td>{{ person.processo or '—' }}</td>
+        <td>{{ person.medida or '—' }}</td>
+        <td>{{ person.grupo_responsabilizacao or '—' }}</td>
+        {% if include_service_columns %}
+        <td>{{ person.local_prestacao_servico or '—' }}</td>
+        <td>{{ person.prestacao_horas_totais if person.prestacao_horas_totais is not none and person.prestacao_horas_totais != '' else '—' }}</td>
+        <td>{{ person.prestacao_horas_semanais if person.prestacao_horas_semanais is not none and person.prestacao_horas_semanais != '' else '—' }}</td>
+        {% endif %}
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ 8 if include_service_columns else 5 }}">Nenhum assistido encontrado para os filtros informados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<style>
+.people-search-report h1{margin:0 0 6px;text-align:center;font-size:20px}
+.people-search-report .report-count{margin:0 0 14px;text-align:center;color:#46525e}
+.people-search-report table{width:100%;border-collapse:collapse;font-size:11px}
+.people-search-report th,.people-search-report td{padding:6px;border:1px solid #87919a;text-align:left;overflow-wrap:anywhere}
+.people-search-report th{background:#e8edf0;font-weight:700}
+.people-search-report tbody tr:nth-child(even){background:#f5f7f8}
+@media print{.people-search-report{font-size:10px}.people-search-report table{font-size:9px}.people-search-report th,.people-search-report td{padding:4px}}
+</style>

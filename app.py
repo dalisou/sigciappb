@@ -2078,36 +2078,32 @@ def marcar_mensagem_lida(message_id):
     return redirect(url_for("dashboard"))
 
 
-@app.route("/pessoas")
-def pessoas():
-    if not authenticated():
-        return redirect(url_for("login"))
-    query = request.args.get("q", "").strip()
-    group = request.args.get("grupo", "")
-    measure = request.args.get("medida", "")
-    service_status = request.args.get("prestacao_servico_comunitario", "")
+def buscar_assistidos(args):
+    query = args.get("q", "").strip()
+    group = args.get("grupo", "")
+    measure = args.get("medida", "")
+    service_status = args.get("prestacao_servico_comunitario", "")
     if service_status not in {"", "Sim", "Não"}:
         service_status = ""
-    service_location = request.args.get("local_prestacao_servico", "").strip()
-    sort_by = request.args.get("sort_by", "data_atendimento")
+    service_location = args.get("local_prestacao_servico", "").strip()
+    sort_by = args.get("sort_by", "data_atendimento")
     if sort_by not in {"data_atendimento", "criado_em", "nome"}:
         sort_by = "data_atendimento"
-    sort_order = request.args.get("sort_order", "az" if sort_by == "nome" else "desc")
+    sort_order = args.get("sort_order", "az" if sort_by == "nome" else "desc")
     if sort_order in {"az", "za"}:
         sort_by = "nome"
     elif sort_by == "nome":
         sort_order = "az" if sort_order == "asc" else "za"
     elif sort_order not in {"asc", "desc"}:
         sort_order = "desc"
-    connection = db()
-    tokens = query.split()
 
     def search_key(value):
         normalized = unicodedata.normalize("NFKD", (value or "").casefold())
         return "".join(character for character in normalized if not unicodedata.combining(character))
 
+    connection = db()
+    tokens = query.split()
     if using_postgres() and tokens:
-        # O nome usa unaccent tokenizado; CPF/processo são comparados sem máscara.
         conditions = []
         parameters = []
         for token in tokens:
@@ -2118,11 +2114,8 @@ def pessoas():
         clean_query = re.sub(r"[./-]", "", query)
         if clean_query:
             conditions.append(
-                "(regexp_replace(COALESCE(cpf, ''), '[./-]', '', 'g') ILIKE "
-                + "%s"
-                + " OR regexp_replace(COALESCE(processo, ''), '[./-]', '', 'g') ILIKE "
-                + "%s"
-                + ")"
+                "(regexp_replace(COALESCE(cpf, ''), '[./-]', '', 'g') ILIKE %s "
+                "OR regexp_replace(COALESCE(processo, ''), '[./-]', '', 'g') ILIKE %s)"
             )
             parameters.extend((f"%{clean_query}%", f"%{clean_query}%"))
         query_sql = "SELECT * FROM pessoas WHERE (" + " OR ".join(conditions) + ") ORDER BY nome"
@@ -2130,7 +2123,6 @@ def pessoas():
     else:
         people = connection.execute("SELECT * FROM pessoas ORDER BY nome").fetchall()
         if tokens:
-            # O SQLite não possui unaccent nativo; NFKD remove acentos para a busca local.
             normalized_tokens = [search_key(token) for token in tokens]
             clean_query = re.sub(r"[./-]", "", search_key(query))
             people = [
@@ -2139,22 +2131,21 @@ def pessoas():
                 or (clean_query and clean_query in re.sub(r"[./-]", "", search_key(person["cpf"])))
                 or (clean_query and clean_query in re.sub(r"[./-]", "", search_key(person["processo"])))
             ]
-    people = [dict(person, grupo_responsabilizacao=normalize_group_responsibility(person["grupo_responsabilizacao"])) for person in people]
+
+    people = [
+        dict(person, grupo_responsabilizacao=normalize_group_responsibility(person["grupo_responsabilizacao"]))
+        for person in people
+    ]
     if group:
         people = [person for person in people if group_responsibility_key(person["grupo_responsabilizacao"]) == group]
     if measure:
         people = [person for person in people if person["medida"] == measure]
     if service_status:
-        people = [
-            person for person in people
-            if person["prestacao_servico_comunitario"] == service_status
-        ]
+        people = [person for person in people if person["prestacao_servico_comunitario"] == service_status]
     if service_location:
         normalized_location = search_key(service_location)
-        people = [
-            person for person in people
-            if normalized_location in search_key(person["local_prestacao_servico"])
-        ]
+        people = [person for person in people if normalized_location in search_key(person["local_prestacao_servico"])]
+
     if sort_by == "nome":
         people.sort(
             key=lambda person: "".join(
@@ -2166,16 +2157,46 @@ def pessoas():
     else:
         people.sort(key=lambda person: (person[sort_by] or ""), reverse=sort_order == "desc")
         people.sort(key=lambda person: not bool(person[sort_by]))
-    group_names = sorted({person["grupo_responsabilizacao"] for person in people if person["grupo_responsabilizacao"]}, key=str.casefold)
-    groups = [(group_responsibility_key(name), name) for name in group_names]
-    measures = SELECT_OPTIONS["medida"]
+
     connection.close()
-    return render_template(
-        "pessoas.html", people=people, groups=groups, measures=measures,
-        query=query, group=group, measure=measure,
-        service_status=service_status, service_location=service_location,
-        sort_by=sort_by, sort_order=sort_order,
+    group_names = sorted(
+        {person["grupo_responsabilizacao"] for person in people if person["grupo_responsabilizacao"]},
+        key=str.casefold,
     )
+    return {
+        "people": people,
+        "groups": [(group_responsibility_key(name), name) for name in group_names],
+        "measures": SELECT_OPTIONS["medida"],
+        "query": query,
+        "group": group,
+        "measure": measure,
+        "service_status": service_status,
+        "service_location": service_location,
+        "sort_by": sort_by,
+        "sort_order": sort_order,
+    }
+
+
+@app.route("/pessoas")
+def pessoas():
+    if not authenticated():
+        return redirect(url_for("login"))
+    filters = buscar_assistidos(request.args)
+    return render_template("pessoas.html", **filters)
+
+
+@app.route("/pessoas/relatorio-busca")
+def relatorio_busca_pessoas():
+    if not authenticated():
+        return redirect(url_for("login"))
+    filters = buscar_assistidos(request.args)
+    body = render_template(
+        "relatorio_busca_pessoas.html",
+        people=filters["people"],
+        include_service_columns=bool(filters["service_status"] or filters["service_location"]),
+        result_count=len(filters["people"]),
+    )
+    return printable("Relatório da Busca de Assistidos", body, "people-search-report")
 
 
 @app.route("/pessoa/nova", methods=["GET", "POST"])
