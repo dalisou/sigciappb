@@ -1410,6 +1410,54 @@ def logout():
     return redirect(url_for("login"))
 
 
+def group_frequency_report_data(connection):
+    group_rows = connection.execute(
+        "SELECT id, nome, status, criado_em FROM grupos_reflexivos ORDER BY id DESC"
+    ).fetchall()
+    participant_rows = connection.execute(
+        "SELECT gp.grupo_id, gp.pessoa_id, p.nome FROM grupo_participantes gp "
+        "JOIN pessoas p ON p.id = gp.pessoa_id ORDER BY gp.grupo_id DESC, p.nome"
+    ).fetchall()
+    frequency_rows = connection.execute(
+        "SELECT grupo_id, pessoa_id, encontro, status, data, horario, facilitadores "
+        "FROM grupo_frequencias ORDER BY grupo_id, encontro"
+    ).fetchall()
+    participants_by_group = {}
+    for participant in participant_rows:
+        participant_data = dict(participant)
+        participant_data["frequencies"] = {}
+        participants_by_group.setdefault(participant["grupo_id"], []).append(participant_data)
+    participants_by_id = {
+        (group_id, participant["pessoa_id"]): participant
+        for group_id, participants in participants_by_group.items()
+        for participant in participants
+    }
+    for row in frequency_rows:
+        participant = participants_by_id.get((row["grupo_id"], row["pessoa_id"]))
+        if participant:
+            participant["frequencies"][row["encontro"]] = dict(row)
+    groups = []
+    for row in group_rows:
+        group = dict(row)
+        group["participants"] = participants_by_group.get(row["id"], [])
+        group["absence_count"] = 0
+        recorded_encounters = set()
+        for participant in group["participants"]:
+            frequencies = participant["frequencies"].values()
+            participant["absence_count"] = sum(
+                frequency["status"] == "Faltou" for frequency in frequencies
+            )
+            group["absence_count"] += participant["absence_count"]
+            recorded_encounters.update(
+                frequency["encontro"]
+                for frequency in frequencies
+                if frequency["status"]
+            )
+        group["recorded_count"] = len(recorded_encounters)
+        groups.append(group)
+    return groups, sum(group["absence_count"] for group in groups)
+
+
 @app.route("/relatorios")
 def relatorios():
     if not authenticated():
@@ -1443,14 +1491,7 @@ def relatorios():
     professionals = connection.execute(
         "SELECT DISTINCT profissional FROM agendamentos WHERE profissional <> '' ORDER BY profissional"
     ).fetchall()
-    group_absences = connection.execute(
-        "SELECT gf.grupo_id, gf.pessoa_id, gf.encontro, gf.data, gf.horario, gf.facilitadores, "
-        "g.nome AS grupo_nome, p.nome AS pessoa_nome, p.cpf, p.processo "
-        "FROM grupo_frequencias gf "
-        "JOIN grupos_reflexivos g ON g.id = gf.grupo_id "
-        "JOIN pessoas p ON p.id = gf.pessoa_id "
-        "WHERE gf.status = 'Faltou' ORDER BY gf.data DESC, g.nome, p.nome, gf.encontro"
-    ).fetchall()
+    group_frequency_groups, group_absence_count = group_frequency_report_data(connection)
     connection.close()
     with_note = sum(bool((item["observacao_falta"] or "").strip()) for item in absences)
     without_note = len(absences) - with_note
@@ -1480,8 +1521,27 @@ def relatorios():
     return render_template(
         "relatorios.html", title="Relatórios", absences=report_rows, professionals=professionals,
         report_stats=report_stats, by_professional=sorted(by_professional.items(), key=lambda item: (-item[1], item[0])),
-        group_absences=group_absences,
+        group_frequency_groups=group_frequency_groups, group_absence_count=group_absence_count,
         filters={"inicio": start_date, "fim": end_date, "profissional": professional, "justificativa": note_filter},
+    )
+
+
+@app.route("/relatorios/grupos/frequencia/imprimir")
+def imprimir_frequencia_grupos_relatorio():
+    if not authenticated():
+        return redirect(url_for("login"))
+    connection = db()
+    groups, absence_count = group_frequency_report_data(connection)
+    connection.close()
+    body = render_template(
+        "relatorios/_frequencia_grupos.html",
+        group_frequency_groups=groups,
+        group_absence_count=absence_count,
+    )
+    return printable(
+        "Relatório de Frequência dos Grupos Reflexivos",
+        body,
+        print_class="group-frequency-report-print-page",
     )
 
 

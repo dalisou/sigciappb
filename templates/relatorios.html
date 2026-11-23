@@ -47,10 +47,5 @@
 	{% if absences %}<div class="table-scroll"><table class="report-table"><tr><th>Data e hora</th><th>Assistido</th><th>Profissional</th><th>Classificação</th><th>Prioridade</th><th>Relato da falta</th><th>Ações</th></tr>
 	{% for item in absences %}<tr class="{% if item.prioridade == 'Alta' %}report-row-high{% endif %}"><td><strong>{{ item.data[8:10] }}/{{ item.data[5:7] }}/{{ item.data[0:4] }}</strong><br><span class="muted">{{ item.hora }}</span></td><td><a href="{{ url_for('pessoa', pid=item.pessoa_id) }}">{{ item.nome }}</a><br><small>{{ item.processo or 'Processo não informado' }}</small></td><td>{{ item.profissional }}</td><td><span class="report-tag">{{ item.classificacao }}</span>{% if item.recorrente %}<br><small>Recorrente no período</small>{% endif %}</td><td><span class="priority priority-{{ item.prioridade|lower }}">{{ item.prioridade }}</span></td><td>{{ item.observacao_falta or 'Nenhum relato registrado.' }}</td><td><a class="btn alt" href="{{ url_for('comprovante_agendamento', appointment_id=item.id) }}" target="_blank">Comprovante</a></td></tr>{% endfor %}</table></div>{% else %}<div class="empty-report"><strong>Nenhuma falta encontrada.</strong><span>Ajuste os filtros ou aguarde novos registros de comparecimento.</span></div>{% endif %}
 </div>
-<div class="card report-table-card group-absence-report">
-	<div class="report-table-heading"><div><h2>Faltas dos Assistidos nos Grupos Reflexivos</h2><p class="muted">Frequências marcadas como falta nos encontros de grupos.</p></div><span class="report-count">{{ group_absences|length }} falta(s)</span></div>
-	{% if group_absences %}<div class="table-scroll"><table class="report-table"><tr><th>Data</th><th>Grupo Reflexivo</th><th>Assistido</th><th>Encontro</th><th>Horário</th><th>Facilitadores</th></tr>
-	{% for item in group_absences %}<tr><td>{{ item.data or 'Não Informada' }}</td><td>{{ item.grupo_nome }}</td><td><a href="{{ url_for('pessoa', pid=item.pessoa_id) }}">{{ item.pessoa_nome }}</a></td><td>{{ item.encontro }}º</td><td>{{ item.horario or 'Não Informado' }}</td><td>{{ item.facilitadores or 'Não Informados' }}</td></tr>{% endfor %}</table></div>
-	{% else %}<div class="empty-report"><strong>Nenhuma falta registrada nos grupos reflexivos.</strong></div>{% endif %}
-</div>
+{% include 'relatorios/_frequencia_grupos.html' %}
 {% endblock %}
