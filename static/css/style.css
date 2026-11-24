@@ -56,3 +56,6 @@
 .article-option[hidden]{display:none}
 .article-option input[type="checkbox"]{flex:none;width:auto;margin:3px 0 0}
 .article-option label{margin:0;color:var(--ink);font-size:13px;font-weight:normal;line-height:1.4;overflow-wrap:anywhere;cursor:pointer}
+.group-frequency-report .report-table{min-width:1200px}
+.group-frequency-report .report-table th:last-child,.group-frequency-report .report-table td:last-child,.group-participant-frequency th:last-child,.group-participant-frequency td:last-child{font-weight:bold;text-align:center}
+.group-frequency-report-actions{display:flex;flex-direction:column;align-items:flex-end;gap:8px}

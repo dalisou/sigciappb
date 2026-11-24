@@ -1,4 +1,5 @@
 <div class="card report-table-card group-absence-report">
+	{% if not individual_group_print %}
 	<div class="report-table-heading">
 		<div><h2>Frequência dos Assistidos nos Grupos Reflexivos</h2><p class="muted">Presenças e faltas organizadas por participante e encontro.</p></div>
 		<div class="actions">
@@ -6,12 +7,13 @@
 			<a class="btn alt no-print" href="{{ url_for('imprimir_frequencia_grupos_relatorio') }}" target="_blank" rel="noopener">Imprimir Relatório de Frequência</a>
 		</div>
 	</div>
+	{% endif %}
 	<div class="group-frequency-report-list">
 	{% for group in group_frequency_groups %}
 	<section class="group-frequency-summary group-frequency-report">
-		<div class="group-heading"><div><h3>{{ group.nome }} <small>({{ group.participants|length }} participantes)</small></h3><p class="muted">Criado em {{ group.criado_em[:10] }} · {{ group.status }} · {{ group.absence_count }} falta(s)</p></div><strong>{{ group.recorded_count }}/10 encontros registrados</strong></div>
-		{% if group.participants %}<div class="table-scroll"><table class="report-table"><thead><tr><th>Assistido</th>{% for encounter in range(1, 11) %}<th>{{ encounter }}º</th>{% endfor %}</tr></thead><tbody>
-		{% for person in group.participants %}<tr class="{% if person.absence_count >= 3 %}frequency-absence-critical{% elif person.absence_count == 2 %}frequency-absence-warning{% endif %}" data-person-id="{{ person.pessoa_id }}"><td><a href="{{ url_for('pessoa', pid=person.pessoa_id) }}">{{ person.nome }}</a></td>{% for encounter in range(1, 11) %}{% set frequency = person.frequencies.get(encounter) %}<td>{{ frequency.status if frequency and frequency.status else 'Não registrado' }}</td>{% endfor %}</tr>{% endfor %}
+		<div class="group-heading"><div><h3>{% if individual_group_print %}Frequência do grupo: {% endif %}{{ group.nome }} <small>({{ group.participants|length }} participantes)</small></h3><p class="muted">Criado em {{ group.criado_em[:10] }} · {{ group.status }} · {{ group.absence_count }} falta(s)</p></div><div class="group-frequency-report-actions"><strong>{{ group.recorded_count }}/10 encontros registrados</strong><a class="btn alt no-print" href="{{ url_for('imprimir_frequencia_individual_grupo_relatorio', group_id=group.id) }}" target="_blank" rel="noopener">Imprimir frequência deste grupo</a></div></div>
+		{% if group.participants %}<div class="table-scroll"><table class="report-table"><thead><tr><th>Assistido</th>{% for encounter in range(1, 11) %}<th>{{ encounter }}º</th>{% endfor %}<th>Total de Faltas</th></tr></thead><tbody>
+		{% for person in group.participants %}<tr class="{% if person.absence_count >= 3 %}frequency-absence-critical{% elif person.absence_count == 2 %}frequency-absence-warning{% endif %}" data-person-id="{{ person.pessoa_id }}"><td><a href="{{ url_for('pessoa', pid=person.pessoa_id) }}">{{ person.nome }}</a></td>{% for encounter in range(1, 11) %}{% set frequency = person.frequencies.get(encounter) %}<td>{{ frequency.status if frequency and frequency.status else 'Não registrado' }}</td>{% endfor %}<td>{{ person.absence_count }}</td></tr>{% endfor %}
 		</tbody></table></div>
 		{% else %}<div class="empty-report"><strong>Este grupo ainda não possui participantes.</strong></div>{% endif %}
 	</section>

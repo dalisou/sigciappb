@@ -114,3 +114,18 @@
   body.attendance-declaration-page .linha-assinatura{border:none!important;border-top:1px solid #000!important;width:100%!important;margin-bottom:8px!important}
   body.attendance-declaration-page .grid-assinaturas p{margin:3px 0;font-size:11px;line-height:1.2;text-align:center!important}
 }
+
+@page group-frequency-report{size:A4 landscape;margin:10mm}
+@media print{
+  body.group-frequency-report-print-page{page:group-frequency-report;margin:0;padding:0}
+  body.group-frequency-report-print-page .print-layout{width:100%;margin:0}
+  body.group-frequency-report-print-page .group-frequency-report-list,body.group-frequency-report-print-page .group-frequency-summary{width:100%;margin:0;padding:0;border:0;box-shadow:none}
+  body.group-frequency-report-print-page .group-frequency-report .table-scroll{overflow:visible}
+  body.group-frequency-report-print-page .group-frequency-report .report-table{width:100%;min-width:0!important;table-layout:fixed;font-size:8px}
+  body.group-frequency-report-print-page .group-frequency-report .report-table th,body.group-frequency-report-print-page .group-frequency-report .report-table td{padding:4px 3px;text-align:center;overflow-wrap:anywhere}
+  body.group-frequency-report-print-page .group-frequency-report .report-table th:first-child,body.group-frequency-report-print-page .group-frequency-report .report-table td:first-child{width:24%;text-align:left}
+  body.group-frequency-report-print-page .group-frequency-report .report-table th:last-child,body.group-frequency-report-print-page .group-frequency-report .report-table td:last-child{width:8%;font-weight:bold}
+  body.group-frequency-report-print-page .group-frequency-report .report-table thead{display:table-header-group}
+  body.group-frequency-report-print-page .group-frequency-report .report-table tr{break-inside:avoid;page-break-inside:avoid}
+  body.group-frequency-report-print-page .group-frequency-report .group-heading{margin:0 0 8px;break-after:avoid;page-break-after:avoid}
+}

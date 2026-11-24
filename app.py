@@ -1545,6 +1545,29 @@ def imprimir_frequencia_grupos_relatorio():
     )
 
 
+@app.route("/relatorios/grupos/<int:group_id>/frequencia/imprimir")
+def imprimir_frequencia_individual_grupo_relatorio(group_id):
+    if not authenticated():
+        return redirect(url_for("login"))
+    connection = db()
+    groups, _ = group_frequency_report_data(connection)
+    connection.close()
+    group = next((item for item in groups if item["id"] == group_id), None)
+    if not group:
+        return "Grupo não encontrado", 404
+    body = render_template(
+        "relatorios/_frequencia_grupos.html",
+        group_frequency_groups=[group],
+        group_absence_count=group["absence_count"],
+        individual_group_print=True,
+    )
+    return printable(
+        f"Frequência - {group['nome']}",
+        body,
+        print_class="group-frequency-report-print-page",
+    )
+
+
 SENAPPEN_MODALITIES = [
     "Acordo de não persecução penal", "Conciliação", "Justiça restaurativa", "Mediação",
     "Medida cautelar diversa da prisão", "Medidas protetivas de urgência", "Penas restritivas de direito",
@@ -3395,6 +3418,10 @@ def grupos():
         for participant in group_data["participants"]:
             participant["frequencies"] = frequencies_by_participant.get(
                 (group["id"], participant["pessoa_id"]), {}
+            )
+            participant["absence_count"] = sum(
+                frequency["status"] == "Faltou"
+                for frequency in participant["frequencies"].values()
             )
         group_data["frequency_data"] = {
             str(participant["pessoa_id"]): {
