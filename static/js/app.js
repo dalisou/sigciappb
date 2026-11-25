@@ -1,4 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
+	document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+		const field = button.closest('.password-input');
+		const input = field?.querySelector('[data-password-input]');
+		const visibleIcon = button.querySelector('[data-password-visible]');
+		const hiddenIcon = button.querySelector('[data-password-hidden]');
+		if (!input || !visibleIcon || !hiddenIcon) return;
+		button.addEventListener('click', () => {
+			const shouldShow = input.type === 'password';
+			input.type = shouldShow ? 'text' : 'password';
+			const label = shouldShow ? 'Ocultar senha' : 'Mostrar senha';
+			button.setAttribute('aria-label', label);
+			button.setAttribute('title', label);
+			button.setAttribute('aria-pressed', String(shouldShow));
+			visibleIcon.hidden = shouldShow;
+			hiddenIcon.hidden = !shouldShow;
+		});
+	});
 	const token = document.querySelector('meta[name="csrf-token"]')?.content;
 	if (token) {
 		document.querySelectorAll('form[method="post"], form[method="POST"]').forEach((form) => {

@@ -59,3 +59,10 @@
 .group-frequency-report .report-table{min-width:1200px}
 .group-frequency-report .report-table th:last-child,.group-frequency-report .report-table td:last-child,.group-participant-frequency th:last-child,.group-participant-frequency td:last-child{font-weight:bold;text-align:center}
 .group-frequency-report-actions{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.password-input{position:relative;margin-top:5px}
+.password-input input{margin-top:0;padding-right:46px}
+.password-toggle{position:absolute;top:50%;right:5px;transform:translateY(-50%);width:36px;height:36px;padding:0;display:grid;place-items:center;background:transparent;color:#52606d;border:0;border-radius:5px}
+.password-toggle:hover{background:#e2e8f0;color:var(--primary)}
+.password-toggle:focus-visible{outline:2px solid var(--secondary);outline-offset:1px}
+.password-toggle svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.password-toggle svg[hidden]{display:none}
